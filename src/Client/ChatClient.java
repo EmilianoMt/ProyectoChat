@@ -1,12 +1,7 @@
-package src.Client;
+package src.client;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.awt.event.*;
+import java.io.*;
 import java.net.Socket;
 import javax.swing.*;
 
@@ -41,7 +36,7 @@ public class ChatClient extends JFrame implements ActionListener {
 
     private void initializeUI() {
         setTitle("Chat Client - " + username);
-        setSize(500, 400); // Aumentar el tamaño de la ventana
+        setSize(600, 400);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         chatArea = new JTextArea();
         chatArea.setEditable(false);
@@ -52,22 +47,36 @@ public class ChatClient extends JFrame implements ActionListener {
         sendButton = new JButton("Send");
         sendButton.addActionListener(this);
 
-        // Lista de usuarios conectados
         userListModel = new DefaultListModel<>();
         userList = new JList<>(userListModel);
+        userList.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    String selectedUser = userList.getSelectedValue();
+                    if (selectedUser != null && !selectedUser.equals(username)) {
+                        openPrivateChat(selectedUser);
+                    }
+                }
+            }
+        });
         JScrollPane userScrollPane = new JScrollPane(userList);
-        userScrollPane.setPreferredSize(new Dimension(150, 0)); // Ajustar tamaño de la lista
+        userScrollPane.setPreferredSize(new Dimension(150, 0));
 
-        // Panel principal
         JPanel panel = new JPanel(new BorderLayout());
         panel.add(messageField, BorderLayout.CENTER);
         panel.add(sendButton, BorderLayout.EAST);
 
         add(scrollPane, BorderLayout.CENTER);
-        add(userScrollPane, BorderLayout.EAST); // Agregar la lista de usuarios a la derecha
+        add(userScrollPane, BorderLayout.EAST);
         add(panel, BorderLayout.SOUTH);
 
         setVisible(true);
+    }
+
+    private void openPrivateChat(String selectedUser) {
+        // Abre una nueva ventana de chat privado
+        PrivateChatWindow privateChat = new PrivateChatWindow(username, selectedUser, socket);
+        privateChat.setVisible(true);
     }
 
     private void startChat() {
@@ -76,7 +85,6 @@ public class ChatClient extends JFrame implements ActionListener {
                 while (true) {
                     String message = input.readUTF();
                     if (message.startsWith("USERS:")) {
-                        // Actualizar la lista de usuarios
                         String[] users = message.substring(6).split(",");
                         userListModel.clear();
                         for (String user : users) {
@@ -142,9 +150,6 @@ public class ChatClient extends JFrame implements ActionListener {
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            new ChatClient("localhost", 8081).setVisible(true);
-        });
+        new ChatClient("localhost", 8081);
     }
 }
-

@@ -1,4 +1,5 @@
-package src.Server;
+package src.server;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -12,7 +13,7 @@ public class HiloChatServer implements Runnable {
     private final Vector<Socket> vector;
     private DataInputStream netIn;
     private DataOutputStream netOut;
-    private static List<String> usuarios = new ArrayList<>(); // Lista de usuarios conectados
+    private static List<String> usuarios = new ArrayList<>();
     private String username;
 
     public HiloChatServer(Socket socket, Vector<Socket> vector) {
@@ -20,11 +21,15 @@ public class HiloChatServer implements Runnable {
         this.vector = vector;
     }
 
+    public static List<String> getUsuarios() {
+        return usuarios;
+    }
+
     private void initStreams() throws IOException {
         netIn = new DataInputStream(socket.getInputStream());
-        username = netIn.readUTF(); // Leer el nombre de usuario al iniciar la conexión
+        username = netIn.readUTF();
         synchronized (usuarios) {
-            usuarios.add(username); // Agregar usuario a la lista
+            usuarios.add(username);
         }
     }
 
@@ -47,7 +52,7 @@ public class HiloChatServer implements Runnable {
             for (Socket soc : vector) {
                 try {
                     netOut = new DataOutputStream(soc.getOutputStream());
-                    netOut.writeUTF(userList); // Enviar la lista de usuarios conectados
+                    netOut.writeUTF(userList);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -60,7 +65,7 @@ public class HiloChatServer implements Runnable {
         try {
             initStreams();
             sendMsgToAll("Server: " + username + " se unió al chat.");
-            sendUserListToAll(); // Enviar la lista de usuarios a todos
+            sendUserListToAll();
 
             while (true) {
                 String msg = netIn.readUTF();
@@ -70,12 +75,12 @@ public class HiloChatServer implements Runnable {
             System.out.println("Client disconnected");
             try {
                 synchronized (usuarios) {
-                    usuarios.remove(username); // Remover usuario de la lista
+                    usuarios.remove(username);
                 }
                 synchronized (vector) {
                     vector.remove(socket);
                 }
-                sendUserListToAll(); // Enviar la lista actualizada a todos
+                sendUserListToAll();
                 socket.close();
             } catch (IOException e) {
                 e.printStackTrace();
