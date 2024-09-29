@@ -18,6 +18,8 @@ public class ChatClient extends JFrame implements ActionListener {
     private JTextField messageField;
     private JButton sendButton;
     private String username;
+    private DefaultListModel<String> userListModel;
+    private JList<String> userList;
 
     public ChatClient(String serverAddress, int serverPort) {
         try {
@@ -39,20 +41,30 @@ public class ChatClient extends JFrame implements ActionListener {
 
     private void initializeUI() {
         setTitle("Chat Client - " + username);
-        setSize(400, 400);
+        setSize(500, 400); // Aumentar el tamaño de la ventana
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         chatArea = new JTextArea();
         chatArea.setEditable(false);
         chatArea.setLineWrap(true);
         JScrollPane scrollPane = new JScrollPane(chatArea);
+
         messageField = new JTextField();
         sendButton = new JButton("Send");
         sendButton.addActionListener(this);
 
-        add(scrollPane, BorderLayout.CENTER);
+        // Lista de usuarios conectados
+        userListModel = new DefaultListModel<>();
+        userList = new JList<>(userListModel);
+        JScrollPane userScrollPane = new JScrollPane(userList);
+        userScrollPane.setPreferredSize(new Dimension(150, 0)); // Ajustar tamaño de la lista
+
+        // Panel principal
         JPanel panel = new JPanel(new BorderLayout());
         panel.add(messageField, BorderLayout.CENTER);
         panel.add(sendButton, BorderLayout.EAST);
+
+        add(scrollPane, BorderLayout.CENTER);
+        add(userScrollPane, BorderLayout.EAST); // Agregar la lista de usuarios a la derecha
         add(panel, BorderLayout.SOUTH);
 
         setVisible(true);
@@ -63,14 +75,22 @@ public class ChatClient extends JFrame implements ActionListener {
             try {
                 while (true) {
                     String message = input.readUTF();
-                    chatArea.append(message + "\n");
+                    if (message.startsWith("USERS:")) {
+                        // Actualizar la lista de usuarios
+                        String[] users = message.substring(6).split(",");
+                        userListModel.clear();
+                        for (String user : users) {
+                            userListModel.addElement(user);
+                        }
+                    } else {
+                        chatArea.append(message + "\n");
+                    }
                 }
             } catch (IOException e) {
                 closeResources();
             }
         }).start();
 
-        // Añadir un listener para enviar un mensaje de desconexión al cerrar la ventana
         addWindowListener(new java.awt.event.WindowAdapter() {
             @Override
             public void windowClosing(java.awt.event.WindowEvent windowEvent) {
@@ -83,7 +103,6 @@ public class ChatClient extends JFrame implements ActionListener {
             }
         });
 
-        // Añadir un KeyListener para enviar el mensaje al presionar Enter
         messageField.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -128,3 +147,4 @@ public class ChatClient extends JFrame implements ActionListener {
         });
     }
 }
+
