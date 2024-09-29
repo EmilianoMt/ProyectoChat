@@ -1,4 +1,4 @@
-package src.client;
+package src.Client;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
@@ -109,12 +109,12 @@ public class ChatClient extends JFrame implements ActionListener {
         addWindowListener(new java.awt.event.WindowAdapter() {
             @Override
             public void windowClosing(java.awt.event.WindowEvent windowEvent) {
-                try {
-                    output.writeUTF(username + " se ha desconectado.");
-                    closeResources();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+            try {
+                output.writeUTF(username + " se ha desconectado.");
+                closeResources();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
             }
         });
 

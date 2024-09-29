@@ -1,4 +1,4 @@
-package src.client;
+package src.Client;
 
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -7,7 +7,7 @@ import java.io.*;
 import java.net.Socket;
 import javax.crypto.SecretKey;
 import javax.swing.*;
-import src.util.EncryptionUtil;
+
 
 public class PrivateChatWindow extends JFrame implements ActionListener {
     private Socket socket;
@@ -30,7 +30,7 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
             input = new DataInputStream(socket.getInputStream());
             output = new DataOutputStream(socket.getOutputStream());
             try {
-                secretKey = EncryptionUtil.generateKey(); // Generar clave secreta para encriptación
+                secretKey = EncryptionChat.generateKey(); // Generar clave secreta para encriptación
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -79,7 +79,7 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
                     String encryptedMessage = input.readUTF();
                     String decryptedMessage;
                     try {
-                        decryptedMessage = EncryptionUtil.decrypt(encryptedMessage, secretKey); // Desencriptar mensaje
+                        decryptedMessage = EncryptionChat.decrypt(encryptedMessage, secretKey); // Desencriptar mensaje
                     } catch (Exception e) {
                         decryptedMessage = "Error decrypting message.";
                         e.printStackTrace();
@@ -103,7 +103,7 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
         String message = messageField.getText().trim();
         if (!message.isEmpty()) {
             try {
-                String encryptedMessage = EncryptionUtil.encrypt(sender + ": " + message, secretKey); // Encriptar mensaje
+                String encryptedMessage = EncryptionChat.encrypt(sender + ": " + message, secretKey); // Encriptar mensaje
                 output.writeUTF(encryptedMessage);
                 messageField.setText("");
             } catch (IOException ex) {

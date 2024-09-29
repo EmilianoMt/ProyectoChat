@@ -1,4 +1,4 @@
-package src.server;
+package src.Server;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -72,31 +72,34 @@ public class HiloChatServer implements Runnable {
             initStreams();
             sendMsgToAll("Server: " + username + " se unió al chat.");
             sendUserListToAll();
-
+    
             // Bucle para recibir y enviar mensajes
             while (true) {
-                String msg = netIn.readUTF();
-                sendMsgToAll(msg);
+                try {
+                    String msg = netIn.readUTF();
+                    sendMsgToAll(msg);
+                } catch (IOException ioe) {
+                    System.out.println("Client disconnected: " + username);
+                    break; // Salir del bucle cuando el cliente se desconecta
+                }
             }
+            
         } catch (IOException ioe) {
-            System.out.println("Client disconnected");
-            try {
-                // Elimina al usuario y cierra el socket en caso de desconexión
-                synchronized (usuarios) {
-                    usuarios.remove(username);
-                }
-                synchronized (vector) {
-                    vector.remove(socket);
-                }
-                sendUserListToAll();
-                socket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            System.out.println("Error initializing streams for: " + username);
         } finally {
+            // Elimina al usuario y cierra el socket en caso de desconexión
+            synchronized (usuarios) {
+                usuarios.remove(username);
+            }
+            synchronized (vector) {
+                vector.remove(socket);
+                sendUserListToAll();
+            }
             closeResources();
         }
     }
+    
+    
 
     // Cierra los recursos de entrada, salida y el socket
     private void closeResources() {
