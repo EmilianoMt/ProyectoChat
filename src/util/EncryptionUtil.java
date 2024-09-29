@@ -1,4 +1,4 @@
-package src;
+package src.util;
 
 import java.util.Base64;
 import javax.crypto.Cipher;

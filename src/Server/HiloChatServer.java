@@ -16,15 +16,18 @@ public class HiloChatServer implements Runnable {
     private static List<String> usuarios = new ArrayList<>();
     private String username;
 
+    // Constructor que inicializa el socket y el vector de sockets
     public HiloChatServer(Socket socket, Vector<Socket> vector) {
         this.socket = socket;
         this.vector = vector;
     }
 
+    // Método estático para obtener la lista de usuarios
     public static List<String> getUsuarios() {
         return usuarios;
     }
 
+    // Inicializa los streams de entrada y salida, y añade el usuario a la lista
     private void initStreams() throws IOException {
         netIn = new DataInputStream(socket.getInputStream());
         username = netIn.readUTF();
@@ -33,6 +36,7 @@ public class HiloChatServer implements Runnable {
         }
     }
 
+    // Envía un mensaje a todos los clientes conectados
     private void sendMsgToAll(String msg) {
         synchronized (vector) {
             for (Socket soc : vector) {
@@ -46,6 +50,7 @@ public class HiloChatServer implements Runnable {
         }
     }
 
+    // Envía la lista de usuarios a todos los clientes conectados
     private void sendUserListToAll() {
         synchronized (vector) {
             String userList = "USERS:" + String.join(",", usuarios);
@@ -60,6 +65,7 @@ public class HiloChatServer implements Runnable {
         }
     }
 
+    // Método principal del hilo, maneja la comunicación con el cliente
     @Override
     public void run() {
         try {
@@ -67,6 +73,7 @@ public class HiloChatServer implements Runnable {
             sendMsgToAll("Server: " + username + " se unió al chat.");
             sendUserListToAll();
 
+            // Bucle para recibir y enviar mensajes
             while (true) {
                 String msg = netIn.readUTF();
                 sendMsgToAll(msg);
@@ -74,6 +81,7 @@ public class HiloChatServer implements Runnable {
         } catch (IOException ioe) {
             System.out.println("Client disconnected");
             try {
+                // Elimina al usuario y cierra el socket en caso de desconexión
                 synchronized (usuarios) {
                     usuarios.remove(username);
                 }
@@ -90,6 +98,7 @@ public class HiloChatServer implements Runnable {
         }
     }
 
+    // Cierra los recursos de entrada, salida y el socket
     private void closeResources() {
         try {
             if (netIn != null) netIn.close();

@@ -16,16 +16,20 @@ public class ChatClient extends JFrame implements ActionListener {
     private DefaultListModel<String> userListModel;
     private JList<String> userList;
 
+    // Constructor que inicializa la conexión con el servidor y la interfaz de usuario
     public ChatClient(String serverAddress, int serverPort) {
         try {
             socket = new Socket(serverAddress, serverPort);
             input = new DataInputStream(socket.getInputStream());
             output = new DataOutputStream(socket.getOutputStream());
 
+            // Solicita el nombre de usuario y lo envía al servidor
             username = JOptionPane.showInputDialog("Introduce tu nombre:");
-            output.writeUTF(username); // Enviar el nombre de usuario al servidor
+            output.writeUTF(username);
 
+            // Inicializa la interfaz de usuario
             initializeUI();
+            // Inicia el chat
             startChat();
         } catch (IOException e) {
             JOptionPane.showMessageDialog(this, "No se pudo conectar al servidor.");
@@ -34,10 +38,12 @@ public class ChatClient extends JFrame implements ActionListener {
         }
     }
 
+    // Método para inicializar la interfaz de usuario
     private void initializeUI() {
-        setTitle("Chat Client - " + username);
+        setTitle("Chat Grupal - " + username);
         setSize(600, 400);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
+        
         chatArea = new JTextArea();
         chatArea.setEditable(false);
         chatArea.setLineWrap(true);
@@ -73,12 +79,13 @@ public class ChatClient extends JFrame implements ActionListener {
         setVisible(true);
     }
 
+    // Método para abrir una ventana de chat privado
     private void openPrivateChat(String selectedUser) {
-        // Abre una nueva ventana de chat privado
         PrivateChatWindow privateChat = new PrivateChatWindow(username, selectedUser, socket);
         privateChat.setVisible(true);
     }
 
+    // Método para iniciar el chat y manejar la recepción de mensajes
     private void startChat() {
         new Thread(() -> {
             try {
@@ -121,11 +128,13 @@ public class ChatClient extends JFrame implements ActionListener {
         });
     }
 
+    // Método que se llama cuando se hace clic en el botón de enviar
     @Override
     public void actionPerformed(ActionEvent e) {
         sendMessage();
     }
 
+    // Método para enviar un mensaje al servidor
     private void sendMessage() {
         String message = messageField.getText().trim();
         if (!message.isEmpty()) {
@@ -139,6 +148,7 @@ public class ChatClient extends JFrame implements ActionListener {
         }
     }
 
+    // Método para cerrar los recursos de entrada, salida y el socket
     private void closeResources() {
         try {
             if (input != null) input.close();
@@ -149,6 +159,7 @@ public class ChatClient extends JFrame implements ActionListener {
         }
     }
 
+    // Método principal para iniciar el cliente de chat
     public static void main(String[] args) {
         new ChatClient("localhost", 8081);
     }

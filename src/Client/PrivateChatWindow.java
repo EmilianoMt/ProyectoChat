@@ -7,7 +7,7 @@ import java.io.*;
 import java.net.Socket;
 import javax.crypto.SecretKey;
 import javax.swing.*;
-import src.EncryptionUtil;
+import src.util.EncryptionUtil;
 
 public class PrivateChatWindow extends JFrame implements ActionListener {
     private Socket socket;
@@ -20,6 +20,7 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
     private String recipient;
     private SecretKey secretKey;
 
+    // Constructor de la ventana de chat privado
     public PrivateChatWindow(String sender, String recipient, Socket socket) {
         this.sender = sender;
         this.recipient = recipient;
@@ -37,10 +38,11 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
             e.printStackTrace();
         }
 
-        initializeUI();
-        startPrivateChat();
+        initializeUI(); // Inicializar la interfaz de usuario
+        startPrivateChat(); // Iniciar el chat privado
     }
 
+    // Inicializar la interfaz de usuario
     private void initializeUI() {
         setTitle("Chat Privado con " + recipient);
         setSize(400, 300);
@@ -69,6 +71,7 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
         setVisible(true);
     }
 
+    // Iniciar el chat privado en un hilo separado
     private void startPrivateChat() {
         new Thread(() -> {
             try {
@@ -84,16 +87,18 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
                     chatArea.append(decryptedMessage + "\n");
                 }
             } catch (IOException e) {
-                closeResources();
+                closeResources(); // Cerrar recursos en caso de error
             }
         }).start();
     }
 
+    // Manejar el evento de acción (enviar mensaje)
     @Override
     public void actionPerformed(ActionEvent e) {
         sendMessage();
     }
 
+    // Enviar un mensaje
     private void sendMessage() {
         String message = messageField.getText().trim();
         if (!message.isEmpty()) {
@@ -111,6 +116,7 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
         }
     }
 
+    // Enviar un archivo
     private void sendFile() {
         JFileChooser fileChooser = new JFileChooser();
         int result = fileChooser.showOpenDialog(this);
@@ -136,6 +142,7 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
         }
     }
 
+    // Cerrar recursos (streams y socket)
     private void closeResources() {
         try {
             if (input != null) input.close();
