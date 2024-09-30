@@ -80,6 +80,8 @@ public class HiloChatServer implements Runnable {
                     sendMsgToAll(msg);
                 } catch (IOException ioe) {
                     System.out.println("Client disconnected: " + username);
+                     closeResources();
+
                     break; // Salir del bucle cuando el cliente se desconecta
                 }
             }
@@ -93,9 +95,8 @@ public class HiloChatServer implements Runnable {
             }
             synchronized (vector) {
                 vector.remove(socket);
-                sendUserListToAll();
+                sendUserListToAll();                
             }
-            closeResources();
         }
     }
     
