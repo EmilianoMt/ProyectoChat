@@ -72,20 +72,25 @@ public class HiloChatServer implements Runnable {
             initStreams();
             sendMsgToAll("Server: " + username + " se unió al chat.");
             sendUserListToAll();
-    
+
             // Bucle para recibir y enviar mensajes
             while (true) {
                 try {
                     String msg = netIn.readUTF();
-                    sendMsgToAll(msg);
+
+                    // Verificar si es un mensaje privado encriptado
+                    if (msg.startsWith("PRIVATE:")) {
+                        handlePrivateMessage(msg);
+                    } else {
+                        sendMsgToAll(msg);
+                    }
                 } catch (IOException ioe) {
                     System.out.println("Client disconnected: " + username);
-                     closeResources();
-
-                    break; // Salir del bucle cuando el cliente se desconecta
+                    closeResources();
+                    break;
                 }
             }
-            
+
         } catch (IOException ioe) {
             System.out.println("Error initializing streams for: " + username);
         } finally {
@@ -95,12 +100,32 @@ public class HiloChatServer implements Runnable {
             }
             synchronized (vector) {
                 vector.remove(socket);
-                sendUserListToAll();                
+                sendUserListToAll();
             }
         }
     }
-    
-    
+
+    // Manejar mensajes privados encriptados
+    private void handlePrivateMessage(String msg) {
+        // El formato esperado del mensaje privado es: "PRIVATE:<recipient>:<encryptedMessage>"
+        String[] parts = msg.split(":", 3);
+        String recipient = parts[1];
+        String encryptedMessage = parts[2];
+
+        synchronized (vector) {
+            for (Socket soc : vector) {
+                try {
+                    DataOutputStream out = new DataOutputStream(soc.getOutputStream());
+                    // Enviar solo al destinatario
+                    if (usuarios.contains(recipient)) {
+                        out.writeUTF("PRIVATE:" + username + ":" + encryptedMessage);
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
 
     // Cierra los recursos de entrada, salida y el socket
     private void closeResources() {

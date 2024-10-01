@@ -8,7 +8,6 @@ import java.net.Socket;
 import javax.crypto.SecretKey;
 import javax.swing.*;
 
-
 public class PrivateChatWindow extends JFrame implements ActionListener {
     private Socket socket;
     private DataInputStream input;
@@ -63,10 +62,10 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
         JPanel panel = new JPanel(new BorderLayout());
         panel.add(messageField, BorderLayout.CENTER);
         panel.add(sendButton, BorderLayout.EAST);
+        panel.add(fileButton, BorderLayout.WEST);
 
         add(scrollPane, BorderLayout.CENTER);
         add(panel, BorderLayout.SOUTH);
-        add(fileButton, BorderLayout.NORTH);
 
         setVisible(true);
     }
@@ -104,7 +103,7 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
         if (!message.isEmpty()) {
             try {
                 String encryptedMessage = EncryptionChat.encrypt(sender + ": " + message, secretKey); // Encriptar mensaje
-                output.writeUTF(encryptedMessage);
+                output.writeUTF("PRIVATE:" + recipient + ":" + encryptedMessage); // Especificar que es un mensaje privado
                 messageField.setText("");
             } catch (IOException ex) {
                 chatArea.append("Error enviando el mensaje.\n");
@@ -123,7 +122,7 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
 
         if (result == JFileChooser.APPROVE_OPTION) {
             File file = fileChooser.getSelectedFile();
-            if (file.length() <= 50 * 1024 * 1024) { // Limitar el tamaño del archivo a 50 MB
+            if (file.length() <= 50 * 1024 * 1024) {  // Limitar el tamaño del archivo a 50 MB
                 try (FileInputStream fis = new FileInputStream(file)) {
                     output.writeUTF("FILE:" + file.getName() + ":" + file.length());
                     byte[] buffer = new byte[4096];
