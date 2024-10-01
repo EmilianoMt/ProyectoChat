@@ -30,6 +30,7 @@ public class HiloChatServer implements Runnable {
     // Inicializa los streams de entrada y salida, y añade el usuario a la lista
     private void initStreams() throws IOException {
         netIn = new DataInputStream(socket.getInputStream());
+        netOut = new DataOutputStream(socket.getOutputStream());
         username = netIn.readUTF();
         synchronized (usuarios) {
             usuarios.add(username);
@@ -39,14 +40,18 @@ public class HiloChatServer implements Runnable {
     // Envía un mensaje a todos los clientes conectados
     private void sendMsgToAll(String msg) {
         synchronized (vector) {
-            for (Socket soc : vector) {
-                try {
-                    netOut = new DataOutputStream(soc.getOutputStream());
-                    netOut.writeUTF(msg);
-                } catch (IOException e) {
-                    e.printStackTrace();
+            vector.removeIf(soc -> {
+                if (!soc.isClosed()) {
+                    try {
+                        DataOutputStream out = new DataOutputStream(soc.getOutputStream());
+                        out.writeUTF(msg);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        return true; // Eliminar el socket si hay una excepción
+                    }
                 }
-            }
+                return soc.isClosed();
+            });
         }
     }
 
@@ -54,14 +59,18 @@ public class HiloChatServer implements Runnable {
     private void sendUserListToAll() {
         synchronized (vector) {
             String userList = "USERS:" + String.join(",", usuarios);
-            for (Socket soc : vector) {
-                try {
-                    netOut = new DataOutputStream(soc.getOutputStream());
-                    netOut.writeUTF(userList);
-                } catch (IOException e) {
-                    e.printStackTrace();
+            vector.removeIf(soc -> {
+                if (!soc.isClosed()) {
+                    try {
+                        DataOutputStream out = new DataOutputStream(soc.getOutputStream());
+                        out.writeUTF(userList);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        return true; // Eliminar el socket si hay una excepción
+                    }
                 }
-            }
+                return soc.isClosed();
+            });
         }
     }
 
@@ -70,6 +79,9 @@ public class HiloChatServer implements Runnable {
     public void run() {
         try {
             initStreams();
+            synchronized (vector) {
+                vector.add(socket);
+            }
             sendMsgToAll("Server: " + username + " se unió al chat.");
             sendUserListToAll();
 
@@ -77,8 +89,6 @@ public class HiloChatServer implements Runnable {
             while (true) {
                 try {
                     String msg = netIn.readUTF();
-
-                    // Verificar si es un mensaje privado encriptado
                     if (msg.startsWith("PRIVATE:")) {
                         handlePrivateMessage(msg);
                     } else {
@@ -86,8 +96,7 @@ public class HiloChatServer implements Runnable {
                     }
                 } catch (IOException ioe) {
                     System.out.println("Client disconnected: " + username);
-                    closeResources();
-                    break;
+                    break; // Salir del bucle cuando el cliente se desconecta
                 }
             }
 
@@ -102,26 +111,28 @@ public class HiloChatServer implements Runnable {
                 vector.remove(socket);
                 sendUserListToAll();
             }
+            closeResources();
         }
     }
 
     // Manejar mensajes privados encriptados
     private void handlePrivateMessage(String msg) {
-        // El formato esperado del mensaje privado es: "PRIVATE:<recipient>:<encryptedMessage>"
         String[] parts = msg.split(":", 3);
         String recipient = parts[1];
         String encryptedMessage = parts[2];
 
         synchronized (vector) {
             for (Socket soc : vector) {
-                try {
-                    DataOutputStream out = new DataOutputStream(soc.getOutputStream());
-                    // Enviar solo al destinatario
-                    if (usuarios.contains(recipient)) {
-                        out.writeUTF("PRIVATE:" + username + ":" + encryptedMessage);
+                if (!soc.isClosed()) {
+                    try {
+                        DataOutputStream out = new DataOutputStream(soc.getOutputStream());
+                        // Enviar solo al destinatario
+                        if (usuarios.contains(recipient)) {
+                            out.writeUTF("PRIVATE:" + username + ":" + encryptedMessage);
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
-                } catch (IOException e) {
-                    e.printStackTrace();
                 }
             }
         }
@@ -132,7 +143,7 @@ public class HiloChatServer implements Runnable {
         try {
             if (netIn != null) netIn.close();
             if (netOut != null) netOut.close();
-            if (socket != null) socket.close();
+            if (socket != null && !socket.isClosed()) socket.close();
         } catch (IOException e) {
             e.printStackTrace();
         }

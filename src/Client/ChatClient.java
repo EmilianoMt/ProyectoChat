@@ -1,4 +1,5 @@
 package src.Client;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
@@ -50,21 +51,21 @@ public class ChatClient extends JFrame implements ActionListener {
         JScrollPane scrollPane = new JScrollPane(chatArea);
 
         messageField = new JTextField();
-        sendButton = new JButton("Send");
+        sendButton = new JButton("Enviar");
         sendButton.addActionListener(this);
 
         userListModel = new DefaultListModel<>();
         userList = new JList<>(userListModel);
-        userList.addMouseListener(new MouseAdapter() {
-            public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) {
-                    String selectedUser = userList.getSelectedValue();
-                    if (selectedUser != null && !selectedUser.equals(username)) {
-                        openPrivateChat(selectedUser);
-                    }
-                }
-            }
-        });
+        // userList.addMouseListener(new MouseAdapter() {
+        //     public void mouseClicked(MouseEvent e) {
+        //         if (e.getClickCount() == 2) {
+        //             String selectedUser = userList.getSelectedValue();
+        //             if (selectedUser != null && !selectedUser.equals(username)) {
+        //                 openPrivateChat(selectedUser);
+        //             }
+        //         }
+        //     }
+        // });
         JScrollPane userScrollPane = new JScrollPane(userList);
         userScrollPane.setPreferredSize(new Dimension(150, 0));
 
@@ -79,11 +80,21 @@ public class ChatClient extends JFrame implements ActionListener {
         setVisible(true);
     }
 
-    // Método para abrir una ventana de chat privado
-    private void openPrivateChat(String selectedUser) {
-        PrivateChatWindow privateChat = new PrivateChatWindow(username, selectedUser, socket);
-        privateChat.setVisible(true);
-    }
+    // // Método para abrir una ventana de chat privado
+    // private void openPrivateChat(String selectedUser) {
+    //     // Solicitar clave compartida al servidor para encriptación privada
+    //     try {
+    //         output.writeUTF("REQUEST_PRIVATE_KEY:" + selectedUser);
+    //         String keyResponse = input.readUTF();
+    //         SecretKey secretKey = EncryptionChat.decodeKey(keyResponse);
+
+    //         PrivateChatWindow privateChat = new PrivateChatWindow(username, selectedUser, socket, secretKey);
+    //         privateChat.setVisible(true);
+    //     } catch (IOException e) {
+    //         chatArea.append("Error abriendo chat privado con " + selectedUser + ".\n");
+    //         e.printStackTrace();
+    //     }
+    // }
 
     // Método para iniciar el chat y manejar la recepción de mensajes
     private void startChat() {
@@ -109,12 +120,12 @@ public class ChatClient extends JFrame implements ActionListener {
         addWindowListener(new java.awt.event.WindowAdapter() {
             @Override
             public void windowClosing(java.awt.event.WindowEvent windowEvent) {
-            try {
-                output.writeUTF(username + " se ha desconectado.");
-                closeResources();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+                try {
+                    output.writeUTF(username + " se ha desconectado.");
+                    closeResources();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         });
 

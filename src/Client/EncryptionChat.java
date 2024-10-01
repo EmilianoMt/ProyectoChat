@@ -30,4 +30,10 @@ public class EncryptionChat {
         byte[] decryptedBytes = cipher.doFinal(decodedBytes);
         return new String(decryptedBytes);
     }
+
+    // Decodificar clave secreta desde una cadena base64
+    static SecretKey decodeKey(String keyResponse) throws Exception {
+        byte[] decodedKey = Base64.getDecoder().decode(keyResponse);
+        return new javax.crypto.spec.SecretKeySpec(decodedKey, 0, decodedKey.length, "AES");
+    }
 }
