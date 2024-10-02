@@ -25,9 +25,22 @@ public class ChatClient extends JFrame implements ActionListener {
             input = new DataInputStream(socket.getInputStream());
             output = new DataOutputStream(socket.getOutputStream());
 
-            // Solicita el nombre de usuario y lo envía al servidor
-            username = JOptionPane.showInputDialog("Introduce tu nombre:");
-            output.writeUTF(username);
+           // Solicita el nombre de usuario y lo envía al servidor
+            do {
+                username = JOptionPane.showInputDialog("Introduce tu nombre:");
+                if (username == null || username.trim().isEmpty()) {
+                    JOptionPane.showMessageDialog(this, "El nombre no puede estar vacío. Por favor, ingresa un nombre.");
+                }
+            } while (username == null || username.trim().isEmpty());
+
+            try {
+                output.writeUTF(username);
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(this, "Error enviando el nombre al servidor.");
+                e.printStackTrace();
+                return;
+            }
+
 
             // Inicializa la interfaz de usuario
             initializeUI();
@@ -121,6 +134,7 @@ public class ChatClient extends JFrame implements ActionListener {
             try {
                 while (true) {
                     String message = input.readUTF();
+                    // System.out.println("Mensaje recibido: " + message);
                     if (message.startsWith("USERS:")) {
                         String[] users = message.substring(6).split(",");
                         userListModel.clear();
@@ -163,31 +177,28 @@ public class ChatClient extends JFrame implements ActionListener {
     public void actionPerformed(ActionEvent e) {
         sendMessage();
     }
-
+    
     // Método para enviar un mensaje al servidor
     private void sendMessage() {
-        String message = messageField.getText().trim();
-        if (!message.isEmpty()) {
-            try {
-                output.writeUTF(username + ": " + message); 
-                messageField.setText("");
-            } catch (IOException ex) {
-                chatArea.append("Error enviando el mensaje.\n");
-                ex.printStackTrace();
-            }
+        try {
+            String msg = messageField.getText();
+            output.writeUTF(username + ": " + msg);
+            messageField.setText("");
+        } catch (IOException ex) {
+            ex.printStackTrace();
         }
     }
 
     // Método para cerrar los recursos de entrada, salida y el socket
-    private void closeResources() {
-        try {
-            if (input != null) input.close();
-            if (output != null) output.close();
-            if (socket != null) socket.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+   private void closeResources() {
+    try {
+        if (input != null) input.close();
+        if (output != null) output.close();
+        if (socket != null && !socket.isClosed()) socket.close();
+    } catch (IOException e) {
+        e.printStackTrace();
     }
+}
 
     // Método principal para iniciar el cliente de chat
     public static void main(String[] args) {
