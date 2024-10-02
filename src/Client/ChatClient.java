@@ -4,6 +4,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
 import java.net.Socket;
+import javax.crypto.SecretKey;
 import javax.swing.*;
 
 public class ChatClient extends JFrame implements ActionListener {
@@ -56,16 +57,16 @@ public class ChatClient extends JFrame implements ActionListener {
 
         userListModel = new DefaultListModel<>();
         userList = new JList<>(userListModel);
-        // userList.addMouseListener(new MouseAdapter() {
-        //     public void mouseClicked(MouseEvent e) {
-        //         if (e.getClickCount() == 2) {
-        //             String selectedUser = userList.getSelectedValue();
-        //             if (selectedUser != null && !selectedUser.equals(username)) {
-        //                 openPrivateChat(selectedUser);
-        //             }
-        //         }
-        //     }
-        // });
+        userList.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    String selectedUser = userList.getSelectedValue();
+                    if (selectedUser != null && !selectedUser.equals(username)) {
+                        openPrivateChat(selectedUser);
+                    }
+                }
+            }
+        });
         JScrollPane userScrollPane = new JScrollPane(userList);
         userScrollPane.setPreferredSize(new Dimension(150, 0));
 
@@ -80,21 +81,39 @@ public class ChatClient extends JFrame implements ActionListener {
         setVisible(true);
     }
 
-    // // Método para abrir una ventana de chat privado
-    // private void openPrivateChat(String selectedUser) {
-    //     // Solicitar clave compartida al servidor para encriptación privada
-    //     try {
-    //         output.writeUTF("REQUEST_PRIVATE_KEY:" + selectedUser);
-    //         String keyResponse = input.readUTF();
-    //         SecretKey secretKey = EncryptionChat.decodeKey(keyResponse);
-
-    //         PrivateChatWindow privateChat = new PrivateChatWindow(username, selectedUser, socket, secretKey);
-    //         privateChat.setVisible(true);
-    //     } catch (IOException e) {
-    //         chatArea.append("Error abriendo chat privado con " + selectedUser + ".\n");
-    //         e.printStackTrace();
-    //     }
-    // }
+    // Método para abrir una ventana de chat privado
+    private void openPrivateChat(String selectedUser) {
+        // Solicitar clave compartida al servidor para encriptación privada
+        try {
+            // Enviar una solicitud al servidor para obtener una clave privada compartida con el usuario seleccionado
+            output.writeUTF("REQUEST_PRIVATE_KEY:" + selectedUser);
+            
+            // Leer la respuesta del servidor que contiene la clave privada codificada
+            String keyResponse = input.readUTF();
+            
+            // Declarar una variable para almacenar la clave secreta decodificada
+            SecretKey secretKey;
+            try {
+                // Decodificar la clave privada recibida del servidor
+                secretKey = EncryptionChat.decodeKey(keyResponse);
+            } catch (Exception e) {
+                // Mostrar un mensaje de error en el área de chat si hay un problema al decodificar la clave
+                chatArea.append("Error decodificando la clave para " + selectedUser + ".\n");
+                e.printStackTrace();
+                // Salir del método si hay un error al decodificar la clave
+                return;
+            }
+    
+            // Crear una nueva ventana de chat privado con el usuario seleccionado y la clave secreta decodificada
+            PrivateChatWindow privateChat = new PrivateChatWindow(username, selectedUser, socket, secretKey);
+            // Hacer visible la ventana de chat privado
+            privateChat.setVisible(true);
+        } catch (IOException e) {
+            // Mostrar un mensaje de error en el área de chat si hay un problema al abrir el chat privado
+            chatArea.append("Error abriendo chat privado con " + selectedUser + ".\n");
+            e.printStackTrace();
+        }
+    }
 
     // Método para iniciar el chat y manejar la recepción de mensajes
     private void startChat() {

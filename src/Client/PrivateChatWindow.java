@@ -20,25 +20,21 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
     private SecretKey secretKey;
 
     // Constructor de la ventana de chat privado
-    public PrivateChatWindow(String sender, String recipient, Socket socket) {
+    public PrivateChatWindow(String sender, String recipient, Socket socket, SecretKey secretKey) {
         this.sender = sender;
         this.recipient = recipient;
         this.socket = socket;
-
+        this.secretKey = secretKey; // Almacena la clave secreta
+    
         try {
             input = new DataInputStream(socket.getInputStream());
             output = new DataOutputStream(socket.getOutputStream());
-            try {
-                secretKey = EncryptionChat.generateKey(); // Generar clave secreta para encriptación
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        initializeUI(); // Inicializar la interfaz de usuario
-        startPrivateChat(); // Iniciar el chat privado
+    
+        initializeUI(); // Inicializa la interfaz
+        startPrivateChat(); // Inicia el chat privado
     }
 
     // Inicializar la interfaz de usuario
@@ -71,25 +67,37 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
     }
 
     // Iniciar el chat privado en un hilo separado
-    private void startPrivateChat() {
-        new Thread(() -> {
-            try {
-                while (true) {
-                    String encryptedMessage = input.readUTF();
-                    String decryptedMessage;
-                    try {
-                        decryptedMessage = EncryptionChat.decrypt(encryptedMessage, secretKey); // Desencriptar mensaje
-                    } catch (Exception e) {
-                        decryptedMessage = "Error decrypting message.";
-                        e.printStackTrace();
+    // Iniciar el chat privado en un hilo separado
+private void startPrivateChat() {
+    new Thread(() -> {
+        try {
+            while (true) {
+                String message = input.readUTF();
+                if (message.startsWith("FILE:")) {
+                    String[] fileInfo = message.split(":");
+                    String fileName = fileInfo[1];
+                    long fileSize = Long.parseLong(fileInfo[2]);
+
+                    // Preguntar al usuario si acepta el archivo
+                    int response = JOptionPane.showConfirmDialog(this, 
+                            "¿Aceptar archivo " + fileName + " (" + fileSize / (1024 * 1024) + " MB)?",
+                            "Solicitud de archivo", JOptionPane.YES_NO_OPTION);
+
+                    if (response == JOptionPane.YES_OPTION) {
+                        receiveFile(fileName, fileSize);
+                    } else {
+                        output.writeUTF("Archivo rechazado");
                     }
-                    chatArea.append(decryptedMessage + "\n");
+                } else {
+                    chatArea.append(message + "\n");
                 }
-            } catch (IOException e) {
-                closeResources(); // Cerrar recursos en caso de error
             }
-        }).start();
-    }
+        } catch (IOException e) {
+            closeResources(); // Cerrar recursos en caso de error
+        }
+    }).start();
+}
+
 
     // Manejar el evento de acción (enviar mensaje)
     @Override
@@ -140,6 +148,32 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
             }
         }
     }
+
+    private void receiveFile(String fileName, long fileSize) {
+        try {
+            // Definir la ruta de descarga en la carpeta de descargas del sistema
+            String userHome = System.getProperty("user.home");
+            File downloadDir = new File(userHome, "Downloads");
+            File file = new File(downloadDir, fileName);
+    
+            try (FileOutputStream fos = new FileOutputStream(file)) {
+                byte[] buffer = new byte[4096];
+                int bytesRead;
+                long totalBytesRead = 0;
+    
+                while (totalBytesRead < fileSize && (bytesRead = input.read(buffer)) != -1) {
+                    fos.write(buffer, 0, bytesRead);
+                    totalBytesRead += bytesRead;
+                }
+    
+                chatArea.append("Archivo recibido: " + file.getAbsolutePath() + "\n");
+            }
+        } catch (IOException e) {
+            chatArea.append("Error recibiendo el archivo.\n");
+            e.printStackTrace();
+        }
+    }
+    
 
     // Cerrar recursos (streams y socket)
     private void closeResources() {

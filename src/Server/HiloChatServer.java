@@ -5,8 +5,11 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Vector;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
 
 public class HiloChatServer implements Runnable {
     private Socket socket;
@@ -16,18 +19,16 @@ public class HiloChatServer implements Runnable {
     private static List<String> usuarios = new ArrayList<>();
     private String username;
 
-    // Constructor que inicializa el socket y el vector de sockets
+    // Constructor
     public HiloChatServer(Socket socket, Vector<Socket> vector) {
         this.socket = socket;
         this.vector = vector;
     }
 
-    // Método estático para obtener la lista de usuarios
     public static List<String> getUsuarios() {
         return usuarios;
     }
 
-    // Inicializa los streams de entrada y salida, y añade el usuario a la lista
     private void initStreams() throws IOException {
         netIn = new DataInputStream(socket.getInputStream());
         netOut = new DataOutputStream(socket.getOutputStream());
@@ -37,44 +38,37 @@ public class HiloChatServer implements Runnable {
         }
     }
 
-    // Envía un mensaje a todos los clientes conectados
     private void sendMsgToAll(String msg) {
         synchronized (vector) {
-            vector.removeIf(soc -> {
-                if (!soc.isClosed()) {
+            for (Socket soc : vector) {
+                if (!soc.isClosed() && soc != socket) { // Evitar enviar al remitente dos veces
                     try {
                         DataOutputStream out = new DataOutputStream(soc.getOutputStream());
                         out.writeUTF(msg);
                     } catch (IOException e) {
                         e.printStackTrace();
-                        return true; // Eliminar el socket si hay una excepción
                     }
                 }
-                return soc.isClosed();
-            });
+            }
         }
     }
 
-    // Envía la lista de usuarios a todos los clientes conectados
     private void sendUserListToAll() {
         synchronized (vector) {
             String userList = "USERS:" + String.join(",", usuarios);
-            vector.removeIf(soc -> {
+            for (Socket soc : vector) {
                 if (!soc.isClosed()) {
                     try {
                         DataOutputStream out = new DataOutputStream(soc.getOutputStream());
                         out.writeUTF(userList);
                     } catch (IOException e) {
                         e.printStackTrace();
-                        return true; // Eliminar el socket si hay una excepción
                     }
                 }
-                return soc.isClosed();
-            });
+            }
         }
     }
 
-    // Método principal del hilo, maneja la comunicación con el cliente
     @Override
     public void run() {
         try {
@@ -85,25 +79,24 @@ public class HiloChatServer implements Runnable {
             sendMsgToAll("Server: " + username + " se unió al chat.");
             sendUserListToAll();
 
-            // Bucle para recibir y enviar mensajes
             while (true) {
                 try {
                     String msg = netIn.readUTF();
                     if (msg.startsWith("PRIVATE:")) {
                         handlePrivateMessage(msg);
+                    } else if (msg.startsWith("REQUEST_PRIVATE_KEY:")) {
+                        handlePrivateKeyRequest(msg); // Manejar solicitud de clave
                     } else {
                         sendMsgToAll(msg);
                     }
                 } catch (IOException ioe) {
                     System.out.println("Client disconnected: " + username);
-                    break; // Salir del bucle cuando el cliente se desconecta
+                    break;
                 }
             }
-
         } catch (IOException ioe) {
             System.out.println("Error initializing streams for: " + username);
         } finally {
-            // Elimina al usuario y cierra el socket en caso de desconexión
             synchronized (usuarios) {
                 usuarios.remove(username);
             }
@@ -115,7 +108,6 @@ public class HiloChatServer implements Runnable {
         }
     }
 
-    // Manejar mensajes privados encriptados
     private void handlePrivateMessage(String msg) {
         String[] parts = msg.split(":", 3);
         String recipient = parts[1];
@@ -123,22 +115,37 @@ public class HiloChatServer implements Runnable {
 
         synchronized (vector) {
             for (Socket soc : vector) {
-                if (!soc.isClosed()) {
-                    try {
-                        DataOutputStream out = new DataOutputStream(soc.getOutputStream());
-                        // Enviar solo al destinatario
-                        if (usuarios.contains(recipient)) {
-                            out.writeUTF("PRIVATE:" + username + ":" + encryptedMessage);
-                        }
-                    } catch (IOException e) {
-                        e.printStackTrace();
+                try {
+                    DataOutputStream out = new DataOutputStream(soc.getOutputStream());
+                    // Envía el mensaje solo al destinatario
+                    if (usuarios.contains(recipient)) {
+                        out.writeUTF("PRIVATE:" + username + ":" + encryptedMessage);
                     }
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
             }
         }
     }
 
-    // Cierra los recursos de entrada, salida y el socket
+    // Método para manejar la solicitud de clave privada
+    private void handlePrivateKeyRequest(String msg) {
+        String[] parts = msg.split(":", 2);
+        String recipient = parts[1];
+
+        try {
+            KeyGenerator keyGen = KeyGenerator.getInstance("AES");
+            keyGen.init(128); // Tamaño de la clave
+            SecretKey secretKey = keyGen.generateKey();
+            String encodedKey = Base64.getEncoder().encodeToString(secretKey.getEncoded());
+
+            // Enviar la clave al cliente solicitante
+            netOut.writeUTF("PRIVATE_KEY:" + encodedKey);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private void closeResources() {
         try {
             if (netIn != null) netIn.close();

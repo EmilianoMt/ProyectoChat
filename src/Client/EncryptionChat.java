@@ -4,25 +4,26 @@ import java.util.Base64;
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 public class EncryptionChat {
 
-    // Generar clave secreta AES
+    // Generate AES secret key
     public static SecretKey generateKey() throws Exception {
         KeyGenerator keyGen = KeyGenerator.getInstance("AES");
-        keyGen.init(128);  // Clave de 128 bits
+        keyGen.init(128); // 128-bit key
         return keyGen.generateKey();
     }
 
-    // Encriptar texto con AES
+    // Encrypt text with AES
     public static String encrypt(String plainText, SecretKey secretKey) throws Exception {
         Cipher cipher = Cipher.getInstance("AES");
         cipher.init(Cipher.ENCRYPT_MODE, secretKey);
         byte[] encryptedBytes = cipher.doFinal(plainText.getBytes());
-        return Base64.getEncoder().encodeToString(encryptedBytes);  // Codificar en base64 para facilitar el transporte
+        return Base64.getEncoder().encodeToString(encryptedBytes); // Encode in base64 for easier transport
     }
 
-    // Desencriptar texto con AES
+    // Decrypt text with AES
     public static String decrypt(String encryptedText, SecretKey secretKey) throws Exception {
         Cipher cipher = Cipher.getInstance("AES");
         cipher.init(Cipher.DECRYPT_MODE, secretKey);
@@ -31,9 +32,21 @@ public class EncryptionChat {
         return new String(decryptedBytes);
     }
 
-    // Decodificar clave secreta desde una cadena base64
-    static SecretKey decodeKey(String keyResponse) throws Exception {
-        byte[] decodedKey = Base64.getDecoder().decode(keyResponse);
-        return new javax.crypto.spec.SecretKeySpec(decodedKey, 0, decodedKey.length, "AES");
+    // Decode secret key from base64 string
+    public static SecretKey decodeKey(String keyResponse) {
+        try {
+            byte[] decodedKey = Base64.getDecoder().decode(keyResponse);
+            return new SecretKeySpec(decodedKey, 0, decodedKey.length, "AES");
+        } catch (IllegalArgumentException e) {
+            // Manejar excepción de decodificación Base64
+            System.err.println("Error: Clave Base64 no válida.");
+            e.printStackTrace();
+            return null; // O lanzar una excepción personalizada
+        } catch (Exception e) {
+            // Manejar cualquier otra excepción
+            System.err.println("Error al decodificar la clave.");
+            e.printStackTrace();
+            return null; // O lanzar una excepción personalizada
+        }
     }
 }
