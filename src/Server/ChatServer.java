@@ -10,30 +10,30 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class ChatServer {
-    private static final int port = 8081;
-    private static final Vector<Socket> vector = new Vector<>();
+    private static final int port = 8081; // Puerto en el que el servidor escuchará las conexiones.
+    private static final Vector<Socket> vector = new Vector<>(); // Vector que almacena las conexiones de los clientes.
 
     public static void main(String[] args) {
-        try (ServerSocket sSocket = new ServerSocket(port)) {
-            ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-            scheduler.scheduleAtFixedRate(() -> {
-                synchronized (vector) {
-                    vector.removeIf(soc -> {
+        try (ServerSocket sSocket = new ServerSocket(port)) { // Crea un ServerSocket que escucha en el puerto especificado.
+            ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1); // Crea un scheduler con un solo hilo.
+            scheduler.scheduleAtFixedRate(() -> { // Programa una tarea que se ejecuta periódicamente.
+                synchronized (vector) { // Sincroniza el acceso al vector.
+                    vector.removeIf(soc -> { // Elimina los sockets cerrados del vector.
                         if (soc.isClosed()) {
-                            return true;
+                            return true; // Si el socket está cerrado, se elimina del vector.
                         }
                         try {
-                            DataOutputStream netOut = new DataOutputStream(soc.getOutputStream());
-                            String userList = "USERS:" + String.join(",", HiloChatServer.getUsuarios());
-                            netOut.writeUTF(userList);
+                            DataOutputStream netOut = new DataOutputStream(soc.getOutputStream()); // Crea un DataOutputStream para enviar datos al cliente.
+                            String userList = "USERS:" + String.join(",", HiloChatServer.getUsuarios()); // Obtiene la lista de usuarios conectados.
+                            netOut.writeUTF(userList); // Envía la lista de usuarios al cliente.
                         } catch (IOException e) {
                             e.printStackTrace();
-                            return true;
+                            return true; // Si ocurre una excepción, se elimina el socket del vector.
                         }
-                        return false;
+                        return false; // Si no hay problemas, el socket permanece en el vector.
                     });
                 }
-            }, 0, 30, TimeUnit.SECONDS);
+            }, 0, 30, TimeUnit.SECONDS); // La tarea se ejecuta cada 30 segundos.
 
             // Bucle principal que acepta nuevas conexiones de clientes.
             while (true) {
