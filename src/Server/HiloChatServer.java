@@ -164,6 +164,11 @@ public class HiloChatServer implements Runnable {
         String[] parts = msg.split(":", 2);
         String recipient = parts[1];
         
+        // if (!usuarios.contains(username)) {
+        //     System.out.println("Error: Usuario no encontrado.");
+        //     return;
+        // }
+
         try {
             // Busca si ya hay una clave compartida entre los dos usuarios
             SecretKey sharedKey = getOrGenerateSharedKey(username, recipient);
@@ -208,7 +213,7 @@ public class HiloChatServer implements Runnable {
     }
 
     // Cierra los recursos de entrada, salida y el socket
-    private void closeResources() {
+    public void closeResources() {
         try {
             if (netIn != null) netIn.close();
             if (netOut != null) netOut.close();

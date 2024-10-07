@@ -33,12 +33,12 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
             e.printStackTrace();
         }
     
-        initializeUI(); // Inicializa la interfaz
+        initializeUIPrivateChat(); // Inicializa la interfaz
         startPrivateChat(); // Inicia el chat privado
     }
 
     // Inicializar la interfaz de usuario
-    private void initializeUI() {
+    private void initializeUIPrivateChat() {
         setTitle("Chat Privado con " + recipient); // Establece el título de la ventana
         setSize(400, 300); // Establece el tamaño de la ventana
         setDefaultCloseOperation(DISPOSE_ON_CLOSE); // Define la acción de cierre
@@ -74,16 +74,10 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
                 while (true) {
                     String message = input.readUTF(); // Lee el mensaje del servidor
                     if (message.startsWith("PRIVATE:")) {
-                        String[] parts = message.split(":", 3); // Separa la cadena en partes (debería ser 3)
-                        if (parts.length == 3) {
-                            String encryptedMessage = parts[2];
-                            try {
-                                String decryptedMessage = EncryptionChat.decrypt(encryptedMessage, secretKey); // Desencripta el mensaje
-                                chatArea.append(decryptedMessage + "\n"); // Muestra el mensaje desencriptado
-                            } catch (Exception ex) {
-                                chatArea.append("Error desencriptando el mensaje.\n");
-                                ex.printStackTrace();
-                            }
+                        String[] parts = message.split(":", 3); // Separa la cadena 
+                        if(parts.length == 3){
+                            String encryptedMensagge = parts[2];
+                            decryptAndDisplayMessage(encryptedMensagge); // Desencripta y muestra el mensaje
                         }
                     } else {
                         chatArea.append(message + "\n"); // Maneja otros mensajes no privados
@@ -96,14 +90,24 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
         
     }
 
+    private void decryptAndDisplayMessage(String encryptedMessage) {
+        try {
+            String decryptedMessage = EncryptionChat.decrypt(encryptedMessage, secretKey); // Desencripta el mensaje
+            chatArea.append(decryptedMessage + "\n"); // Muestra el mensaje desencriptado
+        } catch (Exception ex) {
+            chatArea.append("Error desencriptando el mensaje.\n");
+            ex.printStackTrace();
+        }
+    }
+
     // Manejar el evento de acción (enviar mensaje)
     @Override
     public void actionPerformed(ActionEvent e) {
-        sendMessage(); // Llama a la función para enviar el mensaje
+        sendMessagePrivate(); // Llama a la función para enviar el mensaje
     }
 
     // Enviar un mensaje
-    private void sendMessage() {
+    private void sendMessagePrivate() {
         String message = messageField.getText().trim(); // Obtiene el texto del campo de mensaje
         if (!message.isEmpty()) {
             try {

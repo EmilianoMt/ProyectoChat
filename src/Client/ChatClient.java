@@ -20,15 +20,12 @@ public class ChatClient extends JFrame implements ActionListener {
     private DefaultListModel<String> userListModel;
     private JList<String> userList;
 
-    // Constructor que inicializa la conexión con el servidor y la interfaz de usuario
     public ChatClient(String serverAddress, int serverPort) {
         try {
-            // Conecta al servidor en la dirección y puerto especificados
             socket = new Socket(serverAddress, serverPort);
             input = new DataInputStream(socket.getInputStream());
             output = new DataOutputStream(socket.getOutputStream());
 
-            // Solicita el nombre de usuario y lo envía al servidor
             do {
                 username = JOptionPane.showInputDialog("Introduce tu nombre:");
                 if (username == null || username.trim().isEmpty()) {
@@ -37,7 +34,6 @@ public class ChatClient extends JFrame implements ActionListener {
             } while (username == null || username.trim().isEmpty());
 
             try {
-                // Envía el nombre de usuario al servidor
                 output.writeUTF(username);
             } catch (IOException e) {
                 JOptionPane.showMessageDialog(this, "Error enviando el nombre al servidor.");
@@ -45,9 +41,7 @@ public class ChatClient extends JFrame implements ActionListener {
                 return;
             }
 
-            // Inicializa la interfaz de usuario
             initializeUI();
-            // Inicia el chat
             startChat();
         } catch (IOException e) {
             JOptionPane.showMessageDialog(this, "No se pudo conectar al servidor.");
@@ -56,7 +50,6 @@ public class ChatClient extends JFrame implements ActionListener {
         }
     }
 
-    // Método para inicializar la interfaz de usuario
     private void initializeUI() {
         setTitle("Chat Grupal - " + username);
         setSize(600, 400);
@@ -97,17 +90,21 @@ public class ChatClient extends JFrame implements ActionListener {
         setVisible(true);
     }
 
-    // Método para abrir una ventana de chat privado
     private void openPrivateChat(String selectedUser) {
         try {
-            // Enviar una solicitud al servidor para obtener una clave privada compartida con el usuario seleccionado
-            output.writeUTF("REQUEST_PRIVATE_KEY:" + selectedUser);
+            Socket privateSocket = new Socket(socket.getInetAddress(), socket.getPort());
 
-            // Leer la respuesta del servidor que contiene la clave privada codificada
-            String keyResponse = input.readUTF();
+            DataOutputStream privateOutput = new DataOutputStream(privateSocket.getOutputStream());
+            DataInputStream privateInput = new DataInputStream(privateSocket.getInputStream());
+
+            privateOutput.writeUTF("REQUEST_PRIVATE_KEY:" + selectedUser);
+            // output.writeUTF("REQUEST_PRIVATE_KEY:" + selectedUser);
+
+            String keyResponse = privateInput.readUTF();
+            // String keyResponse = input.readUTF();
+
             System.out.println("Clave secreta codificada: " + keyResponse);
             
-            // Decodificar la clave privada recibida del servidor
             SecretKey secretKey = decodeKey(keyResponse);
             System.out.println("Clave secreta decodificada: " + secretKey);
             if (secretKey == null) {
@@ -115,8 +112,8 @@ public class ChatClient extends JFrame implements ActionListener {
                 return;
             }
 
-            // Crear una nueva ventana de chat privado con el usuario seleccionado y la clave secreta decodificada
-            PrivateChatWindow privateChat = new PrivateChatWindow(username, selectedUser, socket, secretKey);
+            PrivateChatWindow privateChat = new PrivateChatWindow(username, selectedUser, privateSocket, secretKey);
+            // PrivateChatWindow privateChat = new PrivateChatWindow(username, selectedUser, socket, secretKey);
             privateChat.setVisible(true);
         } catch (IOException e) {
             chatArea.append("Error abriendo chat privado con " + selectedUser + ".\n");
@@ -124,17 +121,14 @@ public class ChatClient extends JFrame implements ActionListener {
         }
     }
 
-    // Método para decodificar una clave secreta desde una cadena codificada en Base64
     public static SecretKey decodeKey(String encodedKey) {
         try {
             if (encodedKey.startsWith("PRIVATE_KEY:")) {
                 encodedKey = encodedKey.substring("PRIVATE_KEY:".length());
             }
-            System.out.println("Clave Base64 recibida: '" + encodedKey + "'"); // Verificar la clave recibida
-            // Si la clave es URL-safe, usa getUrlDecoder en lugar de getDecoder
+            System.out.println("Clave Base64 recibida: '" + encodedKey + "'");
             byte[] decodedKey = Base64.getDecoder().decode(encodedKey);
            
-            // Verificar longitud de la clave decodificada
             if (decodedKey.length != 16 && decodedKey.length != 24 && decodedKey.length != 32) {
                 System.out.println("Error: Longitud de clave AES no válida. Longitud: " + decodedKey.length);
                 return null;
@@ -148,13 +142,11 @@ public class ChatClient extends JFrame implements ActionListener {
         }
     }
     
-    // Método para iniciar el chat y manejar la recepción de mensajes
     private void startChat() {
         new Thread(() -> {
             try {
                 while (true) {
                     String message = input.readUTF();
-                    // System.out.println("Mensaje recibido: " + message);
                     if (message.startsWith("USERS:")) {
                         String[] users = message.substring(6).split(",");
                         userListModel.clear();
@@ -192,13 +184,11 @@ public class ChatClient extends JFrame implements ActionListener {
         });
     }
 
-    // Método que se llama cuando se hace clic en el botón de enviar
     @Override
     public void actionPerformed(ActionEvent e) {
         sendMessage();
     }
     
-    // Método para enviar un mensaje al servidor
     private void sendMessage() {
         try {
             String msg = messageField.getText();
@@ -209,7 +199,6 @@ public class ChatClient extends JFrame implements ActionListener {
         }
     }
 
-    // Método para cerrar los recursos de entrada, salida y el socket
     private void closeResources() {
         try {
             if (input != null) input.close();
@@ -220,7 +209,6 @@ public class ChatClient extends JFrame implements ActionListener {
         }
     }
 
-    // Método principal para iniciar el cliente de chat
     public static void main(String[] args) {
         new ChatClient("localhost", 8081);
     }
