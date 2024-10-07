@@ -92,16 +92,16 @@ public class ChatClient extends JFrame implements ActionListener {
 
     private void openPrivateChat(String selectedUser) {
         try {
-            Socket privateSocket = new Socket(socket.getInetAddress(), socket.getPort());
+            // Socket privateSocket = new Socket(socket.getInetAddress(), socket.getPort());
 
-            DataOutputStream privateOutput = new DataOutputStream(privateSocket.getOutputStream());
-            DataInputStream privateInput = new DataInputStream(privateSocket.getInputStream());
+            // DataOutputStream privateOutput = new DataOutputStream(privateSocket.getOutputStream());
+            // DataInputStream privateInput = new DataInputStream(privateSocket.getInputStream());
 
-            privateOutput.writeUTF("REQUEST_PRIVATE_KEY:" + selectedUser);
-            // output.writeUTF("REQUEST_PRIVATE_KEY:" + selectedUser);
+            // privateOutput.writeUTF("REQUEST_PRIVATE_KEY:" + selectedUser);
+            output.writeUTF("REQUEST_PRIVATE_KEY:" + selectedUser);
 
-            String keyResponse = privateInput.readUTF();
-            // String keyResponse = input.readUTF();
+            // String keyResponse = privateInput.readUTF();
+            String keyResponse = input.readUTF();
 
             System.out.println("Clave secreta codificada: " + keyResponse);
             
@@ -112,8 +112,8 @@ public class ChatClient extends JFrame implements ActionListener {
                 return;
             }
 
-            PrivateChatWindow privateChat = new PrivateChatWindow(username, selectedUser, privateSocket, secretKey);
-            // PrivateChatWindow privateChat = new PrivateChatWindow(username, selectedUser, socket, secretKey);
+            // PrivateChatWindow privateChat = new PrivateChatWindow(username, selectedUser, privateSocket, secretKey);
+            PrivateChatWindow privateChat = new PrivateChatWindow(username, selectedUser, socket, secretKey);
             privateChat.setVisible(true);
         } catch (IOException e) {
             chatArea.append("Error abriendo chat privado con " + selectedUser + ".\n");
