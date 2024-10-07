@@ -66,35 +66,34 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
         setVisible(true); // Hace visible la ventana
     }
 
+    
     // Iniciar el chat privado en un hilo separado
     private void startPrivateChat() {
         new Thread(() -> {
             try {
                 while (true) {
-                    String message = input.readUTF(); // Lee mensajes del servidor
-                    if (message.startsWith("FILE:")) {
-                        String[] fileInfo = message.split(":");
-                        String fileName = fileInfo[1];
-                        long fileSize = Long.parseLong(fileInfo[2]);
-
-                        // Preguntar al usuario si acepta el archivo
-                        int response = JOptionPane.showConfirmDialog(this, 
-                                "¿Aceptar archivo " + fileName + " (" + fileSize / (1024 * 1024) + " MB)?",
-                                "Solicitud de archivo", JOptionPane.YES_NO_OPTION);
-
-                        if (response == JOptionPane.YES_OPTION) {
-                            receiveFile(fileName, fileSize); // Recibe el archivo si el usuario acepta
-                        } else {
-                            output.writeUTF("Archivo rechazado"); // Informa al servidor que el archivo fue rechazado
+                    String message = input.readUTF(); // Lee el mensaje del servidor
+                    if (message.startsWith("PRIVATE:")) {
+                        String[] parts = message.split(":", 3); // Separa la cadena en partes (debería ser 3)
+                        if (parts.length == 3) {
+                            String encryptedMessage = parts[2];
+                            try {
+                                String decryptedMessage = EncryptionChat.decrypt(encryptedMessage, secretKey); // Desencripta el mensaje
+                                chatArea.append(decryptedMessage + "\n"); // Muestra el mensaje desencriptado
+                            } catch (Exception ex) {
+                                chatArea.append("Error desencriptando el mensaje.\n");
+                                ex.printStackTrace();
+                            }
                         }
                     } else {
-                        chatArea.append(message + "\n"); // Añade el mensaje al área de chat
+                        chatArea.append(message + "\n"); // Maneja otros mensajes no privados
                     }
                 }
             } catch (IOException e) {
-                closeResources(); // Cerrar recursos en caso de error
+                closeResources();
             }
         }).start();
+        
     }
 
     // Manejar el evento de acción (enviar mensaje)
@@ -183,4 +182,4 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
             e.printStackTrace();
         }
     }
-}
+}  

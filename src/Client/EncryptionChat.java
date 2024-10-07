@@ -4,6 +4,7 @@ import java.util.Base64;
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 
@@ -18,22 +19,25 @@ public class EncryptionChat {
         return keyGen.generateKey(); // Genera y retorna la clave secreta
     }
 
-    // Encripta texto con AES
-    public static String encrypt(String plainText, SecretKey secretKey) throws Exception {
-        Cipher cipher = Cipher.getInstance("AES"); // Crea una instancia de Cipher para AES
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey); // Inicializa el Cipher en modo de encriptación con la clave secreta
-        byte[] encryptedBytes = cipher.doFinal(plainText.getBytes()); // Encripta el texto plano
-        return Base64.getEncoder().encodeToString(encryptedBytes); // Codifica en base64 para facilitar el transporte
+   // Encriptar
+    public static String encrypt(String data, SecretKey secretKey) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        IvParameterSpec iv = new IvParameterSpec(new byte[16]); // IV estático (debería ser aleatorio para mayor seguridad)
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey, iv);
+        byte[] encryptedBytes = cipher.doFinal(data.getBytes());
+        return Base64.getEncoder().encodeToString(encryptedBytes);
     }
 
-    // Desencripta texto con AES
-    public static String decrypt(String encryptedText, SecretKey secretKey) throws Exception {
-        Cipher cipher = Cipher.getInstance("AES"); // Crea una instancia de Cipher para AES
-        cipher.init(Cipher.DECRYPT_MODE, secretKey); // Inicializa el Cipher en modo de desencriptación con la clave secreta
-        byte[] decodedBytes = Base64.getDecoder().decode(encryptedText); // Decodifica el texto encriptado de base64
-        byte[] decryptedBytes = cipher.doFinal(decodedBytes); // Desencripta el texto
-        return new String(decryptedBytes); // Convierte los bytes desencriptados a String y lo retorna
+    // Desencriptar
+    public static String decrypt(String encryptedData, SecretKey secretKey) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        IvParameterSpec iv = new IvParameterSpec(new byte[16]); // IV estático (debería ser el mismo usado en la encriptación)
+        cipher.init(Cipher.DECRYPT_MODE, secretKey, iv);
+        byte[] decodedBytes = Base64.getDecoder().decode(encryptedData);
+        byte[] decryptedBytes = cipher.doFinal(decodedBytes);
+        return new String(decryptedBytes);
     }
+
 
     // Decodifica una clave secreta desde una cadena en base64
     public static SecretKey decodeKey(String encodedKey) {
