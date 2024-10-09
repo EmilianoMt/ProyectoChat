@@ -4,9 +4,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
 import java.net.Socket;
-import java.util.Base64;
 import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 import javax.swing.*;
 
 public class ChatClient extends JFrame implements ActionListener {
@@ -66,6 +64,8 @@ public class ChatClient extends JFrame implements ActionListener {
 
         userListModel = new DefaultListModel<>();
         userList = new JList<>(userListModel);
+
+        
         userList.addMouseListener(new MouseAdapter() {
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) {
@@ -91,56 +91,21 @@ public class ChatClient extends JFrame implements ActionListener {
     }
 
     private void openPrivateChat(String selectedUser) {
+       new Thread(() -> {
         try {
-            // Socket privateSocket = new Socket(socket.getInetAddress(), socket.getPort());
-
-            // DataOutputStream privateOutput = new DataOutputStream(privateSocket.getOutputStream());
-            // DataInputStream privateInput = new DataInputStream(privateSocket.getInputStream());
-
-            // privateOutput.writeUTF("REQUEST_PRIVATE_KEY:" + selectedUser);
-            output.writeUTF("REQUEST_PRIVATE_KEY:" + selectedUser);
-
-            // String keyResponse = privateInput.readUTF();
-            String keyResponse = input.readUTF();
-
-            System.out.println("Clave secreta codificada: " + keyResponse);
-            
-            SecretKey secretKey = decodeKey(keyResponse);
-            System.out.println("Clave secreta decodificada: " + secretKey);
-            if (secretKey == null) {
-                System.out.println("Error decodificando la clave privada.\n");
-                return;
-            }
-
-            // PrivateChatWindow privateChat = new PrivateChatWindow(username, selectedUser, privateSocket, secretKey);
+            SecretKey secretKey = EncryptionChat.getSecretKey();
             PrivateChatWindow privateChat = new PrivateChatWindow(username, selectedUser, socket, secretKey);
             privateChat.setVisible(true);
-        } catch (IOException e) {
+      
+            
+        } catch (Exception e) {
             chatArea.append("Error abriendo chat privado con " + selectedUser + ".\n");
             e.printStackTrace();
         }
+       }).start();
     }
 
-    public static SecretKey decodeKey(String encodedKey) {
-        try {
-            if (encodedKey.startsWith("PRIVATE_KEY:")) {
-                encodedKey = encodedKey.substring("PRIVATE_KEY:".length());
-            }
-            System.out.println("Clave Base64 recibida: '" + encodedKey + "'");
-            byte[] decodedKey = Base64.getDecoder().decode(encodedKey);
-           
-            if (decodedKey.length != 16 && decodedKey.length != 24 && decodedKey.length != 32) {
-                System.out.println("Error: Longitud de clave AES no válida. Longitud: " + decodedKey.length);
-                return null;
-            }
-            
-            return new SecretKeySpec(decodedKey, 0, decodedKey.length, "AES");
-        } catch (IllegalArgumentException e) {
-            System.out.println("Error: Clave Base64 no válida.");
-            e.printStackTrace();
-            return null;
-        }
-    }
+
     
     private void startChat() {
         new Thread(() -> {

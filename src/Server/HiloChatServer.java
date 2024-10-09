@@ -5,11 +5,9 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Vector;
-import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
 public class HiloChatServer implements Runnable {
@@ -114,8 +112,6 @@ public class HiloChatServer implements Runnable {
                     String msg = netIn.readUTF();  // Mensaje recibido desde el cliente
                     if (msg.startsWith("PRIVATE:")) {
                         handlePrivateMessage(msg); // Maneja los mensajes privados
-                    } else if (msg.startsWith("REQUEST_PRIVATE_KEY:")) {
-                        handlePrivateKeyRequest(msg); // Maneja las solicitudes de clave privada
                     } else {
                         sendMsgToAll(msg);  // Envío del mensaje a todos los clientes
                     }
@@ -159,58 +155,7 @@ public class HiloChatServer implements Runnable {
         }
     }
 
-    // Maneja la solicitud de clave privada
-    private void handlePrivateKeyRequest(String msg) {
-        String[] parts = msg.split(":", 2);
-        String recipient = parts[1];
-        
-        // if (!usuarios.contains(username)) {
-        //     System.out.println("Error: Usuario no encontrado.");
-        //     return;
-        // }
-
-        try {
-            // Busca si ya hay una clave compartida entre los dos usuarios
-            SecretKey sharedKey = getOrGenerateSharedKey(username, recipient);
-
-            // Envía la clave a ambos usuarios (solicitante y receptor)
-            sendPrivateKey(username, sharedKey);
-            sendPrivateKey(recipient, sharedKey);
-            
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    // Obtiene o genera una clave compartida entre dos usuarios
-    private SecretKey getOrGenerateSharedKey(String user1, String user2) throws Exception {
-        // Genera un identificador único para el par de usuarios
-        String keyIdentifier = user1.compareTo(user2) < 0 ? user1 + ":" + user2 : user2 + ":" + user1;
-        
-        // Si ya existe una clave compartida entre los usuarios, la devuelve
-        if (sharedKeysMap.containsKey(keyIdentifier)) {
-            return sharedKeysMap.get(keyIdentifier);
-        }
-        
-        // Si no existe, genera una nueva clave y la guarda
-        KeyGenerator keyGen = KeyGenerator.getInstance("AES");
-        keyGen.init(128);
-        SecretKey newKey = keyGen.generateKey();
-        sharedKeysMap.put(keyIdentifier, newKey);
-        return newKey;
-    }
-
-    // Envía la clave secreta a un usuario
-    private void sendPrivateKey(String username, SecretKey key) throws IOException {
-        for (Socket soc : vector) {
-            if (!soc.isClosed() && usuarios.contains(username)) {
-                DataOutputStream out = new DataOutputStream(soc.getOutputStream());
-                String encodedKey = Base64.getEncoder().encodeToString(key.getEncoded());
-                out.writeUTF("PRIVATE_KEY:" + encodedKey); // Envía la clave privada codificada en Base64
-                System.out.println(encodedKey);
-            }
-        }
-    }
+    
 
     // Cierra los recursos de entrada, salida y el socket
     public void closeResources() {

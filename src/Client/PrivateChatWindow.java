@@ -109,9 +109,10 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
     // Enviar un mensaje
     private void sendMessagePrivate() {
         String message = messageField.getText().trim(); // Obtiene el texto del campo de mensaje
+        
         if (!message.isEmpty()) {
             try {
-                String encryptedMessage = EncryptionChat.encrypt(sender + ": " + message, secretKey); // Encripta el mensaje
+                String encryptedMessage = EncryptionChat.encrypt(message, secretKey); 
                 output.writeUTF("PRIVATE:" + recipient + ":" + encryptedMessage); // Especifica que es un mensaje privado
                 messageField.setText(""); // Limpia el campo de mensaje
             } catch (IOException ex) {
