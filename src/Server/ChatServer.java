@@ -1,76 +1,109 @@
 package src.Server;
 
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.util.Vector;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.io.*;
+import java.net.*;
+import java.util.*;
+import java.util.concurrent.*;
 
 public class ChatServer {
-    // Vector que almacena las conexiones de los clientes.
-    private Vector<Socket> vector = new Vector<>();
-    private int port; // Puerto en el que el server escucha las conexiones.
+    private static final int GROUP_PORT = 8081; // Puerto para el chat grupal
+    private static final int PRIVATE_PORT = 8082; // Puerto para el chat privado
+    private static Set<String> connectedUsers = ConcurrentHashMap.newKeySet(); // Conjunto de usuarios conectados (thread-safe)
+    private static Map<String, Socket> userSockets = new ConcurrentHashMap<>(); // Mapa de sockets de usuarios
+    private static ExecutorService executor = Executors.newCachedThreadPool(); // Pool de hilos para manejar conexiones
 
-    // Constructor que recibe el puerto en el que se ejecutará el servidor.
-    public ChatServer(int port) {
-        this.port = port;
-    }
-
-    // Método para establecer la conexión del servidor en el puerto especificado.
-    private ServerSocket connect() {
-        try {
-            ServerSocket sSocket = new ServerSocket(port);
-            return sSocket; 
-        } catch (IOException ioe) {
-            System.out.println("No se puede realizar la conexión en el puerto " + port);
-        }
-        return null; 
-    }
-
-    // Método principal que inicia el servidor y acepta conexiones de clientes.
-    public void principal() {
-        ServerSocket sSocket = connect(); // Intenta conectar el servidor.
-        if (sSocket != null) {
-            // Funcion que envia la lista de usuarios cada 30 segundos.
-            ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-            scheduler.scheduleAtFixedRate(() -> {
-                synchronized (vector) { // Sincroniza el acceso al vector de conexiones.
-                    for (Socket soc : vector) { // Itera sobre cada conexión activa.
-                        try {
-                            DataOutputStream netOut = new DataOutputStream(soc.getOutputStream());
-                            // Genera la lista de usuarios conectados.
-                            String userList = "USERS:" + String.join(",", HiloChatServer.getUsuarios());
-                            netOut.writeUTF(userList); // Envía la lista de usuarios a cada cliente.
-                        } catch (IOException e) {
-                            e.printStackTrace(); 
-                        }
-                    }
-                }
-            }, 0, 30, TimeUnit.SECONDS); // Repeticion cada 30 segundos.
-
-            // Bucle principal que acepta nuevas conexiones de clientes.
-            while (true) {
-                try {
-                    System.out.println("Chat server abierto y esperando conexiones en el puerto: " + port);
-                    Socket socket = sSocket.accept(); // Acepta una nueva conexión.
-                    vector.add(socket); // Añade la nueva conexión al vector.
-                    Thread hilo = new Thread(new HiloChatServer(socket, vector)); // Crea un nuevo hilo para gestionar el cliente.
-                    hilo.start(); // Inicia el hilo.
-                } catch (IOException ioe) {
-                    ioe.printStackTrace();
-                }
-            }
-        } else {
-            System.err.println("No se puede iniciar el servidor."); // Mensaje de error si no se puede conectar.
-        }
-    }
-
-    // Método principal que crea una instancia del servidor de chat en el puerto 8081.
     public static void main(String[] args) {
-        ChatServer chat = new ChatServer(8081);
-        chat.principal(); // Inicia el servidor.
+        try {
+            // Crear dos sockets de servidor para chat grupal y privado
+            ServerSocket groupServerSocket = new ServerSocket(GROUP_PORT);
+            ServerSocket privateServerSocket = new ServerSocket(PRIVATE_PORT);
+
+            System.out.println("Chat Server is running on ports " + GROUP_PORT + " (group) and " + PRIVATE_PORT + " (private)");
+
+            // Iniciar un hilo para manejar conexiones de chat grupal
+            new Thread(() -> handleGroupConnections(groupServerSocket)).start();
+
+            // Iniciar un hilo para manejar conexiones de chat privado
+            new Thread(() -> handlePrivateConnections(privateServerSocket)).start();
+            
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Manejar conexiones de chat grupal
+    private static void handleGroupConnections(ServerSocket serverSocket) {
+        try {
+            while (true) {
+                Socket clientSocket = serverSocket.accept(); // Aceptar nueva conexión
+                executor.submit(new HiloChatServer(clientSocket, "group")); // Asignar a un hilo
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Manejar conexiones de chat privado
+    private static void handlePrivateConnections(ServerSocket serverSocket) {
+        try {
+            while (true) {
+                Socket clientSocket = serverSocket.accept(); // Aceptar nueva conexión
+                executor.submit(new HiloChatServer(clientSocket, "private")); // Asignar a un hilo
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Añadir usuario y actualizar lista de usuarios
+    public static synchronized void addUser(String username, Socket socket) {
+        connectedUsers.add(username); // Añadir usuario al conjunto
+        userSockets.put(username, socket); // Añadir socket del usuario al mapa
+        sendUserListToAll(); // Enviar lista de usuarios actualizada a todos
+    }
+
+    // Eliminar usuario y actualizar lista de usuarios
+    public static synchronized void removeUser(String username) {
+        connectedUsers.remove(username); // Eliminar usuario del conjunto
+        userSockets.remove(username); // Eliminar socket del usuario del mapa
+        sendUserListToAll(); // Enviar lista de usuarios actualizada a todos
+    }
+
+    // Enviar lista de usuarios actualizada a todos los clientes
+    public static synchronized void sendUserListToAll() {
+        String userList = "USERS:" + String.join(",", connectedUsers); // Crear cadena con lista de usuarios
+        for (Socket socket : userSockets.values()) {
+            try {
+                DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+                out.writeUTF(userList); // Enviar lista de usuarios
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    // Enviar un mensaje privado a un usuario específico
+    public static synchronized void sendPrivateMessage(String recipient, String message) {
+        try {
+            Socket recipientSocket = userSockets.get(recipient); // Obtener socket del destinatario
+            if (recipientSocket != null) {
+                DataOutputStream outPrivate = new DataOutputStream(recipientSocket.getOutputStream());
+                outPrivate.writeUTF(message); // Enviar mensaje privado
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Difundir un mensaje grupal a todos los usuarios
+    public static synchronized void broadcastMessage(String message) {
+        for (Socket s : userSockets.values()) {
+            try {
+                DataOutputStream out = new DataOutputStream(s.getOutputStream());
+                out.writeUTF(message); // Enviar mensaje grupal
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }
