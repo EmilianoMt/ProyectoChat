@@ -59,7 +59,7 @@ public class PrivateChatWindow extends JFrame {
                 // Encrypt message using the shared key
                 String encryptedMessage = EncryptionChat.encrypt(message, sharedKey);
                 privateOutput.writeUTF("PRIVATE:" + recipient + ":" + encryptedMessage);
-                privateChatArea.append("Me: " + message + "\\n");
+                privateChatArea.append("Me: " + message + "\n");
                 privateMessageField.setText("");
             }
         } catch (IOException e) {
@@ -76,7 +76,7 @@ public class PrivateChatWindow extends JFrame {
                         String encryptedMessage = msg.split(":", 3)[2];
                         // Decrypt message using the shared key
                         String decryptedMessage = EncryptionChat.decrypt(encryptedMessage, sharedKey);
-                        privateChatArea.append(recipient + ": " + decryptedMessage + "\\n");
+                        privateChatArea.append(recipient + ": " + decryptedMessage + "\n");
                     }
                 }
             } catch (IOException e) {

@@ -123,7 +123,7 @@ public class ChatClient extends JFrame {
                         }
                     } else if (!msg.startsWith("PRIVATE:")) {
                         // Display group message with a newline (filter out private messages)
-                        chatArea.append(msg + "\\n");
+                        chatArea.append(msg + "\n");
                         chatArea.setCaretPosition(chatArea.getDocument().getLength());  // Auto-scroll to bottom
                     }
                 }
