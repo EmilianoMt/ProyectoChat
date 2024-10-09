@@ -12,12 +12,14 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
     private Socket socket;
     private DataInputStream input;
     private DataOutputStream output;
-    private JTextArea chatArea;
+    private JTextArea PrivatechatArea;
     private JTextField messageField;
     private JButton sendButton, fileButton;
     private String sender;
     private String recipient;
     private SecretKey secretKey;
+    private MessageReceiver messageReceiver;
+    private Thread receiverThread;
 
     // Constructor de la ventana de chat privado
     public PrivateChatWindow(String sender, String recipient, Socket socket, SecretKey secretKey) {
@@ -35,6 +37,10 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
     
         initializeUIPrivateChat(); // Inicializa la interfaz
         startPrivateChat(); // Inicia el chat privado
+    
+        messageReceiver = new MessageReceiver(input, PrivatechatArea, secretKey);
+        receiverThread = new Thread(messageReceiver);
+        receiverThread.start();
     }
 
     // Inicializar la interfaz de usuario
@@ -43,10 +49,10 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
         setSize(400, 300); // Establece el tamaño de la ventana
         setDefaultCloseOperation(DISPOSE_ON_CLOSE); // Define la acción de cierre
 
-        chatArea = new JTextArea();
-        chatArea.setEditable(false); // Hace que el área de chat no sea editable
-        chatArea.setLineWrap(true); // Habilita el ajuste de línea
-        JScrollPane scrollPane = new JScrollPane(chatArea); // Añade un scroll al área de chat
+        PrivatechatArea = new JTextArea();
+        PrivatechatArea.setEditable(false); // Hace que el área de chat no sea editable
+        PrivatechatArea.setLineWrap(true); // Habilita el ajuste de línea
+        JScrollPane scrollPane = new JScrollPane(PrivatechatArea); // Añade un scroll al área de chat
 
         messageField = new JTextField();
         sendButton = new JButton("Enviar");
@@ -66,7 +72,6 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
         setVisible(true); // Hace visible la ventana
     }
 
-    
     // Iniciar el chat privado en un hilo separado
     private void startPrivateChat() {
         new Thread(() -> {
@@ -74,13 +79,15 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
                 while (true) {
                     String message = input.readUTF(); // Lee el mensaje del servidor
                     if (message.startsWith("PRIVATE:")) {
-                        String[] parts = message.split(":", 3); // Separa la cadena 
-                        if(parts.length == 3){
-                            String encryptedMensagge = parts[2];
-                            decryptAndDisplayMessage(encryptedMensagge); // Desencripta y muestra el mensaje
+                        PrivatechatArea.append(recipient + ": " + message);
+                    } else
+                    if (message.startsWith("FILE:")) {
+                        String[] parts = message.split(":", 3); // Separa la cadena
+                        if (parts.length == 3) {
+                            String fileName = parts[1];
+                            long fileSize = Long.parseLong(parts[2]);
+                            receiveFile(fileName, fileSize); // Recibe el archivo
                         }
-                    } else {
-                        chatArea.append(message + "\n"); // Maneja otros mensajes no privados
                     }
                 }
             } catch (IOException e) {
@@ -90,40 +97,41 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
         
     }
 
-    private void decryptAndDisplayMessage(String encryptedMessage) {
-        try {
-            String decryptedMessage = EncryptionChat.decrypt(encryptedMessage, secretKey); // Desencripta el mensaje
-            chatArea.append(decryptedMessage + "\n"); // Muestra el mensaje desencriptado
-        } catch (Exception ex) {
-            chatArea.append("Error desencriptando el mensaje.\n");
-            ex.printStackTrace();
-        }
-    }
+    // private void decryptAndDisplayMessage(String encryptedMessage) {
+    //     try {
+    //         String decryptedMessage = EncryptionChat.decrypt(encryptedMessage, secretKey); // Desencripta el mensaje
+    //         PrivatechatArea.append(decryptedMessage + "\n"); // Muestra el mensaje desencriptado
+    //     } catch (Exception ex) {
+    //         PrivatechatArea.append("Error desencriptando el mensaje.\n");
+    //         ex.printStackTrace();
+    //     }
+    // }
 
     // Manejar el evento de acción (enviar mensaje)
     @Override
     public void actionPerformed(ActionEvent e) {
-        sendMessagePrivate(); // Llama a la función para enviar el mensaje
+        sendMessage();
     }
 
     // Enviar un mensaje
-    private void sendMessagePrivate() {
-        String message = messageField.getText().trim(); // Obtiene el texto del campo de mensaje
-        
-        if (!message.isEmpty()) {
-            try {
-                String encryptedMessage = EncryptionChat.encrypt(message, secretKey); 
-                output.writeUTF("PRIVATE:" + recipient + ":" + encryptedMessage); // Especifica que es un mensaje privado
-                messageField.setText(""); // Limpia el campo de mensaje
-            } catch (IOException ex) {
-                chatArea.append("Error enviando el mensaje.\n");
-                ex.printStackTrace();
-            } catch (Exception ex) {
-                chatArea.append("Error encriptando el mensaje.\n");
-                ex.printStackTrace();
-            }
+private void sendMessage() {
+    try {
+        String msg = messageField.getText();
+        String encryptedMessage;
+        try {
+            encryptedMessage = EncryptionChat.encrypt(msg, secretKey); // Encripta el mensaje
+        } catch (Exception ex) {
+            PrivatechatArea.append("Error encriptando el mensaje.\n");
+            ex.printStackTrace();
+            return; // Salir del método si hay un error en la encriptación
         }
+        output.writeUTF("PRIVATE:" + recipient + ":" + encryptedMessage); // Envía el mensaje encriptado
+        messageField.setText("");
+        PrivatechatArea.append("Yo: " + msg + "\n"); // Muestra el mensaje en el área de chat
+    } catch (IOException ex) {
+        ex.printStackTrace();
     }
+}
 
     // Enviar un archivo
     private void sendFile() {
@@ -140,13 +148,13 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
                     while ((bytesRead = fis.read(buffer)) != -1) {
                         output.write(buffer, 0, bytesRead); // Envía el archivo en bloques
                     }
-                    chatArea.append("Archivo enviado: " + file.getName() + "\n");
+                    PrivatechatArea.append("Archivo enviado: " + file.getName() + "\n");
                 } catch (IOException e) {
-                    chatArea.append("Error enviando el archivo.\n");
+                    PrivatechatArea.append("Error enviando el archivo.\n");
                     e.printStackTrace();
                 }
             } else {
-                chatArea.append("El archivo supera el límite de 50 MB.\n");
+                PrivatechatArea.append("El archivo supera el límite de 50 MB.\n");
             }
         }
     }
@@ -169,10 +177,10 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
                     totalBytesRead += bytesRead;
                 }
     
-                chatArea.append("Archivo recibido: " + file.getAbsolutePath() + "\n");
+                PrivatechatArea.append("Archivo recibido: " + file.getAbsolutePath() + "\n");
             }
         } catch (IOException e) {
-            chatArea.append("Error recibiendo el archivo.\n");
+            PrivatechatArea.append("Error recibiendo el archivo.\n");
             e.printStackTrace();
         }
     }
@@ -187,4 +195,4 @@ public class PrivateChatWindow extends JFrame implements ActionListener {
             e.printStackTrace();
         }
     }
-}  
+}

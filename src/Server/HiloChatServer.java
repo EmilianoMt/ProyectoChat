@@ -5,9 +5,11 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Vector;
+import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 
 public class HiloChatServer implements Runnable {
@@ -134,19 +136,33 @@ public class HiloChatServer implements Runnable {
         }
     }
 
-    // Maneja los mensajes privados entre usuarios
+    // Maneja los mensajes privados
     private void handlePrivateMessage(String msg) {
         String[] parts = msg.split(":", 3);
+        if (parts.length < 3) {
+            System.out.println("Mensaje privado mal formado: " + msg);
+            return;
+        }
+
         String recipient = parts[1];
         String encryptedMessage = parts[2];
-
         synchronized (vector) {
             for (Socket soc : vector) {
                 try {
-                    DataOutputStream out = new DataOutputStream(soc.getOutputStream());
-                    // Envía el mensaje solo al destinatario
-                    if (usuarios.contains(recipient)) {
-                        out.writeUTF("PRIVATE:" + username + ":" + encryptedMessage);
+                    DataOutputStream outPrivate = new DataOutputStream(soc.getOutputStream());
+                    // Desencripta el mensaje antes de enviarlo al destinatario
+                    SecretKey secretKey = sharedKeysMap.get(recipient);
+                    if (secretKey != null) {
+                        try {
+                            String decryptedMessage = decrypt(encryptedMessage, secretKey);
+                            // Envía el mensaje desencriptado solo al destinatario
+                            if (usuarios.contains(recipient)) {
+                                outPrivate.writeUTF("PRIVATE:" + username + ":" + decryptedMessage);
+                                break; // Salir del bucle después de enviar el mensaje al destinatario
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -155,7 +171,14 @@ public class HiloChatServer implements Runnable {
         }
     }
 
-    
+    // Desencripta un mensaje usando una clave secreta
+    public static String decrypt(String encryptedMessage, SecretKey key) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES");
+        cipher.init(Cipher.DECRYPT_MODE, key);
+        byte[] decodedBytes = Base64.getDecoder().decode(encryptedMessage);
+        byte[] decryptedBytes = cipher.doFinal(decodedBytes);
+        return new String(decryptedBytes);
+    }
 
     // Cierra los recursos de entrada, salida y el socket
     public void closeResources() {
@@ -167,4 +190,4 @@ public class HiloChatServer implements Runnable {
             e.printStackTrace();
         }
     }
-}                                                                             
+}

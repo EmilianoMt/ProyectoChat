@@ -18,12 +18,15 @@ public class ChatClient extends JFrame implements ActionListener {
     private DefaultListModel<String> userListModel;
     private JList<String> userList;
 
+    // Constructor de la clase ChatClient
     public ChatClient(String serverAddress, int serverPort) {
         try {
+            // Conexión al servidor
             socket = new Socket(serverAddress, serverPort);
             input = new DataInputStream(socket.getInputStream());
             output = new DataOutputStream(socket.getOutputStream());
 
+            // Solicita el nombre de usuario
             do {
                 username = JOptionPane.showInputDialog("Introduce tu nombre:");
                 if (username == null || username.trim().isEmpty()) {
@@ -31,6 +34,7 @@ public class ChatClient extends JFrame implements ActionListener {
                 }
             } while (username == null || username.trim().isEmpty());
 
+            // Envía el nombre de usuario al servidor
             try {
                 output.writeUTF(username);
             } catch (IOException e) {
@@ -39,6 +43,7 @@ public class ChatClient extends JFrame implements ActionListener {
                 return;
             }
 
+            // Inicializa la interfaz de usuario y comienza el chat
             initializeUI();
             startChat();
         } catch (IOException e) {
@@ -48,6 +53,7 @@ public class ChatClient extends JFrame implements ActionListener {
         }
     }
 
+    // Inicializa la interfaz de usuario
     private void initializeUI() {
         setTitle("Chat Grupal - " + username);
         setSize(600, 400);
@@ -65,7 +71,7 @@ public class ChatClient extends JFrame implements ActionListener {
         userListModel = new DefaultListModel<>();
         userList = new JList<>(userListModel);
 
-        
+        // Añade un listener para abrir un chat privado al hacer doble clic en un usuario
         userList.addMouseListener(new MouseAdapter() {
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) {
@@ -90,14 +96,13 @@ public class ChatClient extends JFrame implements ActionListener {
         setVisible(true);
     }
 
+    // Abre un chat privado con el usuario seleccionado
     private void openPrivateChat(String selectedUser) {
        new Thread(() -> {
         try {
             SecretKey secretKey = EncryptionChat.getSecretKey();
             PrivateChatWindow privateChat = new PrivateChatWindow(username, selectedUser, socket, secretKey);
             privateChat.setVisible(true);
-      
-            
         } catch (Exception e) {
             chatArea.append("Error abriendo chat privado con " + selectedUser + ".\n");
             e.printStackTrace();
@@ -105,8 +110,7 @@ public class ChatClient extends JFrame implements ActionListener {
        }).start();
     }
 
-
-    
+    // Inicia el chat grupal
     private void startChat() {
         new Thread(() -> {
             try {
@@ -127,6 +131,7 @@ public class ChatClient extends JFrame implements ActionListener {
             }
         }).start();
 
+        // Listener para cerrar recursos al cerrar la ventana
         addWindowListener(new java.awt.event.WindowAdapter() {
             @Override
             public void windowClosing(java.awt.event.WindowEvent windowEvent) {
@@ -139,6 +144,7 @@ public class ChatClient extends JFrame implements ActionListener {
             }
         });
 
+        // Listener para enviar mensaje al presionar Enter
         messageField.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
@@ -149,11 +155,13 @@ public class ChatClient extends JFrame implements ActionListener {
         });
     }
 
+    // Maneja el evento de acción del botón de enviar
     @Override
     public void actionPerformed(ActionEvent e) {
         sendMessage();
     }
     
+    // Envía un mensaje al servidor
     private void sendMessage() {
         try {
             String msg = messageField.getText();
@@ -164,6 +172,7 @@ public class ChatClient extends JFrame implements ActionListener {
         }
     }
 
+    // Cierra los recursos de entrada, salida y el socket
     private void closeResources() {
         try {
             if (input != null) input.close();
@@ -174,6 +183,7 @@ public class ChatClient extends JFrame implements ActionListener {
         }
     }
 
+    // Método principal para iniciar el cliente de chat
     public static void main(String[] args) {
         new ChatClient("localhost", 8081);
     }

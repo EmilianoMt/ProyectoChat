@@ -44,11 +44,11 @@ public class EncryptionChat {
     }
 
     public static String decrypt(String encryptedMessage, SecretKey key) throws Exception {
-        // Implementación del método de desencriptación usando la clave
         Cipher cipher = Cipher.getInstance("AES");
         cipher.init(Cipher.DECRYPT_MODE, key);
         byte[] decodedBytes = Base64.getDecoder().decode(encryptedMessage);
         byte[] decryptedBytes = cipher.doFinal(decodedBytes);
         return new String(decryptedBytes);
     }
+    
 }
