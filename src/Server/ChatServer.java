@@ -6,24 +6,24 @@ import java.util.*;
 import java.util.concurrent.*;
 
 public class ChatServer {
-    private static final int GROUP_PORT = 8081;
-    private static final int PRIVATE_PORT = 8082;
-    private static Set<String> connectedUsers = ConcurrentHashMap.newKeySet(); // Thread-safe set for users
-    private static Map<String, Socket> userSockets = new ConcurrentHashMap<>(); // Store users' sockets
-    private static ExecutorService executor = Executors.newCachedThreadPool();
+    private static final int GROUP_PORT = 8081; // Puerto para el chat grupal
+    private static final int PRIVATE_PORT = 8082; // Puerto para el chat privado
+    private static Set<String> connectedUsers = ConcurrentHashMap.newKeySet(); // Conjunto de usuarios conectados (thread-safe)
+    private static Map<String, Socket> userSockets = new ConcurrentHashMap<>(); // Mapa de sockets de usuarios
+    private static ExecutorService executor = Executors.newCachedThreadPool(); // Pool de hilos para manejar conexiones
 
     public static void main(String[] args) {
         try {
-            // Create two server sockets for group and private chat
+            // Crear dos sockets de servidor para chat grupal y privado
             ServerSocket groupServerSocket = new ServerSocket(GROUP_PORT);
             ServerSocket privateServerSocket = new ServerSocket(PRIVATE_PORT);
 
             System.out.println("Chat Server is running on ports " + GROUP_PORT + " (group) and " + PRIVATE_PORT + " (private)");
 
-            // Start a thread to handle group chat connections
+            // Iniciar un hilo para manejar conexiones de chat grupal
             new Thread(() -> handleGroupConnections(groupServerSocket)).start();
 
-            // Start a thread to handle private chat connections
+            // Iniciar un hilo para manejar conexiones de chat privado
             new Thread(() -> handlePrivateConnections(privateServerSocket)).start();
             
         } catch (IOException e) {
@@ -31,76 +31,76 @@ public class ChatServer {
         }
     }
 
-    // Handle group chat connections
+    // Manejar conexiones de chat grupal
     private static void handleGroupConnections(ServerSocket serverSocket) {
         try {
             while (true) {
-                Socket clientSocket = serverSocket.accept();
-                executor.submit(new HiloChatServer(clientSocket, "group"));
+                Socket clientSocket = serverSocket.accept(); // Aceptar nueva conexión
+                executor.submit(new HiloChatServer(clientSocket, "group")); // Asignar a un hilo
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    // Handle private chat connections
+    // Manejar conexiones de chat privado
     private static void handlePrivateConnections(ServerSocket serverSocket) {
         try {
             while (true) {
-                Socket clientSocket = serverSocket.accept();
-                executor.submit(new HiloChatServer(clientSocket, "private"));
+                Socket clientSocket = serverSocket.accept(); // Aceptar nueva conexión
+                executor.submit(new HiloChatServer(clientSocket, "private")); // Asignar a un hilo
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    // Add user and update user list
+    // Añadir usuario y actualizar lista de usuarios
     public static synchronized void addUser(String username, Socket socket) {
-        connectedUsers.add(username);
-        userSockets.put(username, socket);
-        sendUserListToAll();
+        connectedUsers.add(username); // Añadir usuario al conjunto
+        userSockets.put(username, socket); // Añadir socket del usuario al mapa
+        sendUserListToAll(); // Enviar lista de usuarios actualizada a todos
     }
 
-    // Remove user and update user list
+    // Eliminar usuario y actualizar lista de usuarios
     public static synchronized void removeUser(String username) {
-        connectedUsers.remove(username);
-        userSockets.remove(username);
-        sendUserListToAll();
+        connectedUsers.remove(username); // Eliminar usuario del conjunto
+        userSockets.remove(username); // Eliminar socket del usuario del mapa
+        sendUserListToAll(); // Enviar lista de usuarios actualizada a todos
     }
 
-    // Send updated user list to all clients
+    // Enviar lista de usuarios actualizada a todos los clientes
     public static synchronized void sendUserListToAll() {
-        String userList = "USERS:" + String.join(",", connectedUsers);
+        String userList = "USERS:" + String.join(",", connectedUsers); // Crear cadena con lista de usuarios
         for (Socket socket : userSockets.values()) {
             try {
                 DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-                out.writeUTF(userList);
+                out.writeUTF(userList); // Enviar lista de usuarios
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
     }
 
-    // Send a private message to a specific user
+    // Enviar un mensaje privado a un usuario específico
     public static synchronized void sendPrivateMessage(String recipient, String message) {
         try {
-            Socket recipientSocket = userSockets.get(recipient);
+            Socket recipientSocket = userSockets.get(recipient); // Obtener socket del destinatario
             if (recipientSocket != null) {
                 DataOutputStream outPrivate = new DataOutputStream(recipientSocket.getOutputStream());
-                outPrivate.writeUTF(message);
+                outPrivate.writeUTF(message); // Enviar mensaje privado
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    // Broadcast a group message to all users
+    // Difundir un mensaje grupal a todos los usuarios
     public static synchronized void broadcastMessage(String message) {
         for (Socket s : userSockets.values()) {
             try {
                 DataOutputStream out = new DataOutputStream(s.getOutputStream());
-                out.writeUTF(message);
+                out.writeUTF(message); // Enviar mensaje grupal
             } catch (IOException e) {
                 e.printStackTrace();
             }

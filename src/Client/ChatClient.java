@@ -17,11 +17,12 @@ public class ChatClient extends JFrame {
     private JTextField messageField;
     private JButton sendButton;
     private String username;
-    private SecretKey sharedKey; // Shared encryption key
+    private SecretKey sharedKey; // Clave de cifrado compartida
 
+    // Constructor del cliente de chat
     public ChatClient(String serverAddress, int groupPort, int privatePort) {
         try {
-            // Keep prompting for a username until a valid one is entered
+            // Seguir solicitando un nombre de usuario hasta que se ingrese uno válido
             while (username == null || username.trim().isEmpty()) {
                 username = JOptionPane.showInputDialog(this, "Enter your username:");
                 if (username == null || username.trim().isEmpty()) {
@@ -29,66 +30,67 @@ public class ChatClient extends JFrame {
                 }
             }
 
-            // Connect to server for group chat
+            // Conectar al servidor para el chat grupal
             groupSocket = new Socket(serverAddress, groupPort);
             groupInput = new DataInputStream(groupSocket.getInputStream());
             groupOutput = new DataOutputStream(groupSocket.getOutputStream());
-            groupOutput.writeUTF(username);  // Send username to the server
+            groupOutput.writeUTF(username);  // Enviar nombre de usuario al servidor
 
-            // Connect to server for private chat
+            // Conectar al servidor para el chat privado
             privateSocket = new Socket(serverAddress, privatePort);
 
-            // Generate a shared encryption key for private chats
-            sharedKey = EncryptionChat.generateKey();
+            // Generar una clave de cifrado compartida para los chats privados
+            sharedKey = EncryptionChat.keyGenerator();
 
-            // Initialize UI
+            // Inicializar la interfaz de usuario
             setupUI();
 
-            // Start listening for group messages
+            // Comenzar a escuchar mensajes grupales
             new Thread(new GroupMessageListener()).start();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+    // Configurar la interfaz de usuario
     private void setupUI() {
         setTitle(username + " - Group Chat");
         setSize(700, 500);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
 
-        // Chat area
+        // Área de chat
         chatArea = new JTextArea();
         chatArea.setEditable(false);
-        chatArea.setLineWrap(true);  // Wrap text to next line if too long
-        chatArea.setWrapStyleWord(true);  // Wrap on word boundaries
+        chatArea.setLineWrap(true);  // Ajustar texto a la siguiente línea si es demasiado largo
+        chatArea.setWrapStyleWord(true);  // Ajustar en los límites de las palabras
         JScrollPane scrollPane = new JScrollPane(chatArea);
         add(scrollPane, BorderLayout.CENTER);
 
-        // Message field
-        messageField = new JTextField(40);  // Text field with more length
+        // Campo de mensaje
+        messageField = new JTextField(40);  // Campo de texto con más longitud
         messageField.addActionListener(e -> sendMessage());
 
-        // Send button
+        // Botón de enviar
         sendButton = new JButton("Send");
         sendButton.addActionListener(e -> sendMessage());
 
-        // Panel for message input
+        // Panel para la entrada de mensajes
         JPanel messagePanel = new JPanel();
         messagePanel.setLayout(new BorderLayout());
         messagePanel.add(messageField, BorderLayout.CENTER);
         messagePanel.add(sendButton, BorderLayout.EAST);
         add(messagePanel, BorderLayout.SOUTH);
 
-        // User list
+        // Lista de usuarios
         userListModel = new DefaultListModel<>();
         JList<String> userList = new JList<>(userListModel);
-        userList.setFixedCellWidth(150);  // Increase width of the user list
+        userList.setFixedCellWidth(150);  // Aumentar el ancho de la lista de usuarios
         userList.addMouseListener(new MouseAdapter() {
             public void mouseClicked(MouseEvent evt) {
                 if (evt.getClickCount() == 2) {
                     String selectedUser = userList.getSelectedValue();
                     if (selectedUser != null && !selectedUser.equals(username)) {
-                        // Open a new private chat window with the shared encryption key
+                        // Abrir una nueva ventana de chat privado con la clave de cifrado compartida
                         new PrivateChatWindow(username, selectedUser, privateSocket, sharedKey).setVisible(true);
                     }
                 }
@@ -98,11 +100,12 @@ public class ChatClient extends JFrame {
         add(userScrollPane, BorderLayout.EAST);
     }
 
+    // Enviar mensaje al chat grupal
     private void sendMessage() {
         try {
             String message = messageField.getText().trim();
             if (!message.isEmpty()) {
-                groupOutput.writeUTF(message);  // Send only the message (no username concatenation)
+                groupOutput.writeUTF(message);  // Enviar solo el mensaje (sin concatenación de nombre de usuario)
                 messageField.setText("");
             }
         } catch (IOException e) {
@@ -110,21 +113,22 @@ public class ChatClient extends JFrame {
         }
     }
 
+    // Clase interna para escuchar mensajes grupales
     private class GroupMessageListener implements Runnable {
         public void run() {
             try {
                 while (true) {
                     String msg = groupInput.readUTF();
                     if (msg.startsWith("USERS:")) {
-                        // Update user list only if it is a proper user list message
+                        // Actualizar la lista de usuarios solo si es un mensaje de lista de usuarios adecuado
                         String[] users = msg.substring(6).split(",");
                         if (!msg.contains("PRIVATE:")) {
                             updateUserList(users);
                         }
                     } else if (!msg.startsWith("PRIVATE:")) {
-                        // Display group message with a newline (filter out private messages)
+                        // Mostrar mensaje grupal con un salto de línea (filtrar mensajes privados)
                         chatArea.append(msg + "\n");
-                        chatArea.setCaretPosition(chatArea.getDocument().getLength());  // Auto-scroll to bottom
+                        chatArea.setCaretPosition(chatArea.getDocument().getLength());  // Desplazarse automáticamente al final
                     }
                 }
             } catch (IOException e) {
@@ -133,17 +137,19 @@ public class ChatClient extends JFrame {
         }
     }
 
+    // Actualizar la lista de usuarios
     private void updateUserList(String[] users) {
         SwingUtilities.invokeLater(() -> {
             userListModel.clear();
             for (String user : users) {
-                if (!user.contains("PRIVATE:")) {  // Filter out any messages with "PRIVATE:"
+                if (!user.contains("PRIVATE:")) {  // Filtrar cualquier mensaje con "PRIVATE:"
                     userListModel.addElement(user);
                 }
             }
         });
     }
 
+    // Método principal para iniciar el cliente de chat
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new ChatClient("localhost", 8081, 8082).setVisible(true));
     }
