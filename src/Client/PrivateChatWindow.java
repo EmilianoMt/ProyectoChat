@@ -69,30 +69,33 @@ public class PrivateChatWindow extends JFrame {
     }
 
     // Enviar mensaje privado
-    private void sendPrivateMessage() {
-        try {
-            String message = privateMessageField.getText().trim();
-            if (!message.isEmpty()) {
-                // Generar la clave secreta
-                SecretKey secretKey = EncryptionChat.keyGenerator();
-    
-                // Encriptar el mensaje usando la clave generada
-                String encryptedMessage = EncryptionChat.Encrypt(message, secretKey);
-    
-                // Codificar la clave secreta a String (Base64)
-                String encodedKey = EncryptionChat.toString(secretKey);
-    
-                // Enviar el mensaje junto con la clave
-                privateOutput.writeUTF("PRIVATE:" + recipient + ":" + encryptedMessage + ":" + encodedKey);
-                
-                // Mostrar el mensaje en la ventana de chat (no encriptado)
-                privateChatArea.append("Me: " + message + "\n");
-                privateMessageField.setText("");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+private void sendPrivateMessage() {
+    try {
+        String message = privateMessageField.getText().trim();
+        if (!message.isEmpty()) {
+            System.out.println("Enviando mensaje privado: " + message + " al destinatario: " + recipient); // Depuración
+
+            // Generar la clave secreta
+            SecretKey secretKey = EncryptionChat.keyGenerator();
+
+            // Encriptar el mensaje usando la clave generada
+            String encryptedMessage = EncryptionChat.Encrypt(message, secretKey);
+
+            // Codificar la clave secreta a String (Base64)
+            String encodedKey = EncryptionChat.toString(secretKey);
+
+            // Enviar el mensaje junto con la clave
+            privateOutput.writeUTF("PRIVATE:" + recipient + ":" + encryptedMessage + ":" + encodedKey);
+            
+            // Mostrar el mensaje en la ventana de chat (no encriptado)
+            privateChatArea.append("Me: " + message + "\n");
+            privateMessageField.setText("");
         }
+    } catch (Exception e) {
+        e.printStackTrace();
     }
+}
+
     
     // Enviar archivo
     private void sendFile() {
@@ -146,27 +149,29 @@ public class PrivateChatWindow extends JFrame {
             try {
                 while (true) {
                     String msg = privateInput.readUTF();
-    
+                    System.out.println("Mensaje privado recibido: " + msg); // Depuración
+
                     if (msg.startsWith("FILE:" + sender)) {
                         String[] parts = msg.split(":", 4);
                         String fileName = parts[2];
                         long fileSize = Long.parseLong(parts[3]);
-    
+
                         // Recibir el archivo y guardarlo en la carpeta de descargas
                         receiveFile(fileName, fileSize);
                     } else if (msg.startsWith("PRIVATE:" + sender)) {
                         // Lógica existente para recibir mensajes privados
                         String[] parts = msg.split(":", 4);
+                        String sender = parts[1];
                         String encryptedMessage = parts[2];
                         String encodedKey = parts[3];
-    
+
                         // Convertir la clave desde Base64
                         SecretKey secretKey = EncryptionChat.toSecretKey(encodedKey);
-    
+
                         try {
                             // Desencriptar el mensaje usando la clave recibida
                             String decryptedMessage = EncryptionChat.Dencrypt(encryptedMessage, secretKey);
-                            privateChatArea.append(recipient + ": " + decryptedMessage + "\n");
+                            privateChatArea.append(sender + ": " + decryptedMessage + "\n");
                         } catch (Exception e) {
                             e.printStackTrace();
                             privateChatArea.append("Error al desencriptar el mensaje.\n");
@@ -178,6 +183,7 @@ public class PrivateChatWindow extends JFrame {
             }
         }
     }
+
     
     // Recibir archivo
     private void receiveFile(String fileName, long fileSize) {

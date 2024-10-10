@@ -8,7 +8,7 @@ import javax.crypto.SecretKey;
 import javax.swing.*;
 
 public class ChatClient extends JFrame {
-    private Socket groupSocket;
+    private Socket socket;
     private Socket privateSocket;
     private DataInputStream groupInput;
     private DataOutputStream groupOutput;
@@ -20,7 +20,7 @@ public class ChatClient extends JFrame {
     private SecretKey sharedKey; // Clave de cifrado compartida
 
     // Constructor del cliente de chat
-    public ChatClient(String serverAddress, int groupPort, int privatePort) {
+    public ChatClient(String serverAddress, int port) {
         try {
             // Seguir solicitando un nombre de usuario hasta que se ingrese uno válido
             while (username == null || username.trim().isEmpty()) {
@@ -31,13 +31,13 @@ public class ChatClient extends JFrame {
             }
 
             // Conectar al servidor para el chat grupal
-            groupSocket = new Socket(serverAddress, groupPort);
-            groupInput = new DataInputStream(groupSocket.getInputStream());
-            groupOutput = new DataOutputStream(groupSocket.getOutputStream());
+            socket = new Socket(serverAddress, port);
+            groupInput = new DataInputStream(socket.getInputStream());
+            groupOutput = new DataOutputStream(socket.getOutputStream());
             groupOutput.writeUTF(username);  // Enviar nombre de usuario al servidor
 
             // Conectar al servidor para el chat privado
-            privateSocket = new Socket(serverAddress, privatePort);
+            privateSocket = new Socket(serverAddress, port);
 
             // Generar una clave de cifrado compartida para los chats privados
             sharedKey = EncryptionChat.keyGenerator();
@@ -55,7 +55,7 @@ public class ChatClient extends JFrame {
     // Configurar la interfaz de usuario
     private void setupUI() {
         setTitle(username + " - Group Chat");
-        setSize(700, 500);
+        setSize(500, 400);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
 
         // Área de chat
@@ -105,6 +105,7 @@ public class ChatClient extends JFrame {
         try {
             String message = messageField.getText().trim();
             if (!message.isEmpty()) {
+                System.out.println("Enviando mensaje grupal: " + message); // Depuración
                 groupOutput.writeUTF(message);  // Enviar solo el mensaje (sin concatenación de nombre de usuario)
                 messageField.setText("");
             }
@@ -113,15 +114,18 @@ public class ChatClient extends JFrame {
         }
     }
 
+
     // Clase interna para escuchar mensajes grupales
     private class GroupMessageListener implements Runnable {
         public void run() {
             try {
                 while (true) {
                     String msg = groupInput.readUTF();
+                    System.out.println("Mensaje recibido: " + msg); // Depuración
                     if (msg.startsWith("USERS:")) {
                         // Actualizar la lista de usuarios solo si es un mensaje de lista de usuarios adecuado
                         String[] users = msg.substring(6).split(",");
+                        updateUserList(users);
                         if (!msg.contains("PRIVATE:")) {
                             updateUserList(users);
                         }
@@ -142,15 +146,13 @@ public class ChatClient extends JFrame {
         SwingUtilities.invokeLater(() -> {
             userListModel.clear();
             for (String user : users) {
-                if (!user.contains("PRIVATE:")) {  // Filtrar cualquier mensaje con "PRIVATE:"
-                    userListModel.addElement(user);
-                }
+                userListModel.addElement(user);
             }
         });
     }
 
     // Método principal para iniciar el cliente de chat
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new ChatClient("localhost", 8081, 8082).setVisible(true));
+        SwingUtilities.invokeLater(() -> new ChatClient("localhost", 8081).setVisible(true));
     }
 }

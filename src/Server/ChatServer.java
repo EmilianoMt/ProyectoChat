@@ -6,8 +6,8 @@ import java.util.*;
 import java.util.concurrent.*;
 
 public class ChatServer {
-    private static final int GROUP_PORT = 8081; // Puerto para el chat grupal
-    private static final int PRIVATE_PORT = 8082; // Puerto para el chat privado
+    private static final int PORT = 8081; // Puerto para el chat grupal
+
     private static Set<String> connectedUsers = ConcurrentHashMap.newKeySet(); // Conjunto de usuarios conectados (thread-safe)
     private static Map<String, Socket> userSockets = new ConcurrentHashMap<>(); // Mapa de sockets de usuarios
     private static ExecutorService executor = Executors.newCachedThreadPool(); // Pool de hilos para manejar conexiones
@@ -15,51 +15,52 @@ public class ChatServer {
     public static void main(String[] args) {
         try {
             // Crear dos sockets de servidor para chat grupal y privado
-            ServerSocket groupServerSocket = new ServerSocket(GROUP_PORT);
-            ServerSocket privateServerSocket = new ServerSocket(PRIVATE_PORT);
+            
+            ServerSocket serverSocket = new ServerSocket(PORT);
 
-            System.out.println("Chat Server is running on ports " + GROUP_PORT + " (group) and " + PRIVATE_PORT + " (private)");
+            System.out.println("Chat Server is running on port " + PORT);
 
-            // Iniciar un hilo para manejar conexiones de chat grupal
-            new Thread(() -> handleGroupConnections(groupServerSocket)).start();
-
-            // Iniciar un hilo para manejar conexiones de chat privado
-            new Thread(() -> handlePrivateConnections(privateServerSocket)).start();
+            while (true) {               
+                Socket clientSocket = serverSocket.accept(); // Aceptar nueva conexión
+                executor.submit(new HiloChatServer(clientSocket)); // Asignar a un hilo
+            }
             
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    // Manejar conexiones de chat grupal
-    private static void handleGroupConnections(ServerSocket serverSocket) {
-        try {
-            while (true) {
-                Socket clientSocket = serverSocket.accept(); // Aceptar nueva conexión
-                executor.submit(new HiloChatServer(clientSocket, "group")); // Asignar a un hilo
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+    // // Manejar conexiones de chat grupal
+    // private static void handleGroupConnections(ServerSocket serverSocket) {
+    //     try {
+    //         while (true) {
+    //             Socket clientSocket = serverSocket.accept(); // Aceptar nueva conexión
+    //             executor.submit(new HiloChatServer(clientSocket, "group")); // Asignar a un hilo
+    //         }
+    //     } catch (IOException e) {
+    //         e.printStackTrace();
+    //     }
+    // }
 
-    // Manejar conexiones de chat privado
-    private static void handlePrivateConnections(ServerSocket serverSocket) {
-        try {
-            while (true) {
-                Socket clientSocket = serverSocket.accept(); // Aceptar nueva conexión
-                executor.submit(new HiloChatServer(clientSocket, "private")); // Asignar a un hilo
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+    // // Manejar conexiones de chat privado
+    // private static void handlePrivateConnections(ServerSocket serverSocket) {
+    //     try {
+    //         while (true) {
+    //             Socket clientSocket = serverSocket.accept(); // Aceptar nueva conexión
+    //             executor.submit(new HiloChatServer(clientSocket, "private")); // Asignar a un hilo
+    //         }
+    //     } catch (IOException e) {
+    //         e.printStackTrace();
+    //     }
+    // }
 
     // Añadir usuario y actualizar lista de usuarios
     public static synchronized void addUser(String username, Socket socket) {
+        
         connectedUsers.add(username); // Añadir usuario al conjunto
         userSockets.put(username, socket); // Añadir socket del usuario al mapa
         sendUserListToAll(); // Enviar lista de usuarios actualizada a todos
+        broadcastMessage(username + " has joined the chat."); // Notificar a todos los usuarios
     }
 
     // Eliminar usuario y actualizar lista de usuarios
@@ -67,18 +68,26 @@ public class ChatServer {
         connectedUsers.remove(username); // Eliminar usuario del conjunto
         userSockets.remove(username); // Eliminar socket del usuario del mapa
         sendUserListToAll(); // Enviar lista de usuarios actualizada a todos
+        broadcastMessage(username + " has left the chat."); // Notificar a todos los usuarios
     }
 
     // Enviar lista de usuarios actualizada a todos los clientes
     public static synchronized void sendUserListToAll() {
         String userList = "USERS:" + String.join(",", connectedUsers); // Crear cadena con lista de usuarios
-        for (Socket socket : userSockets.values()) {
+        for(Map.Entry<String, Socket> entry : userSockets.entrySet()) {
             try {
-                DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-                out.writeUTF(userList); // Enviar lista de usuarios
+                Socket socket = entry.getValue();
+                if(socket != null && !socket.isClosed() && socket.isConnected()) {
+                    DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+                    out.writeUTF(userList); // Enviar lista de usuarios
+
+                }else{
+                    System.out.println("Socket cerrado para el usuario: " + entry.getKey());
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            
         }
     }
 
