@@ -27,23 +27,21 @@ public class HiloChatServer implements Runnable {
         try {
             // Leer el nombre de usuario cuando el cliente se conecta
             username = input.readUTF();
-            System.out.println(username + " connected."); // Depuración
+            System.out.println(username + " connected.");
+            
+            // Añadir al usuario en el servidor
             ChatServer.addUser(username, socket);
 
-            sharedKey = ChatServer.generateSharedKey();
-            key = toString(sharedKey); 
-            System.out.println(key);
+            // Enviar la clave compartida al nuevo cliente
+            sharedKey = ChatServer.getSharedKey(); // Obtener la clave generada en el servidor
+            System.out.println("Clave enviada al cliente: " + sharedKey);
 
-            // Enviar la clave compartida a ambos usuarios
-            ChatServer.sendSharedKeyToAllClients(sharedKey);
-            System.out.println("Clave compartida enviada a todos los usuarios" + key);
+            // Enviar la clave al nuevo cliente
+            ChatServer.sendSharedKeyToClient(sharedKey, socket);
 
-
+            // Continuar recibiendo mensajes del cliente
             String msg;
-            // Leer continuamente mensajes del cliente
             while ((msg = input.readUTF()) != null) {
-                System.out.println("Recibido mensaje del cliente: " + msg); // Depuración
-
                 if (msg.startsWith("PRIVATE:")) {
                     handlePrivateMessage(msg); // Manejar mensajes privados
                 } else {
@@ -53,10 +51,12 @@ public class HiloChatServer implements Runnable {
         } catch (IOException e) {
             System.out.println(username + " disconnected.");
         } finally {
-            ChatServer.removeUser(username); // Eliminar usuario al desconectarse
-            closeResources(); // Cerrar recursos
+            ChatServer.removeUser(username);
+            closeResources();
         }
     }
+
+
 
     // Manejar mensajes grupales
     private void handleGroupMessage(String msg) {
@@ -64,29 +64,25 @@ public class HiloChatServer implements Runnable {
     }
 
     // Manejar mensajes privados
-   private void handlePrivateMessage(String msg) {
+    private void handlePrivateMessage(String msg) {
         System.out.println("Recibiendo mensaje privado en el servidor: " + msg); // Depuración
 
-        String[] parts = msg.split(":", 3);
+        String[] parts = msg.split(":", 3); // dividir mensaje en partes
         if (parts.length < 3) {
-            System.out.println("Malformed private message: " + msg);
+            System.out.println("Mensaje privado mal formado: " + msg);
             return;
         }
 
-        String recipient = parts[1]; // Extraer el nombre del destinatario
+        // Extraer destinatario y mensaje encriptado
+        String recipient = parts[1];
         String message = parts[2];
 
-        // Generar clave compartida
-        System.out.println("Generando y compartiendo la clave secreta para: " + username + " y " + recipient);
-
-
-        
-
-        // Enviar el mensaje encriptado con la clave compartida
-        System.out.println("Enviando mensaje privado al destinatario: " + recipient + "   " + message); // Depuración
-        ChatServer.sendPrivateMessage(recipient, "PRIVATE:" + username + ": " + message);
+        // Enviar mensaje al destinatario corregido
+        System.out.println("Enviando mensaje privado al destinatario: " + recipient);
+        ChatServer.sendPrivateMessage(recipient, "PRIVATE:" + this.username + ":" + message);
     }
 
+    
      public static String toString(SecretKey secretKey) {
             return Base64.getEncoder().encodeToString(secretKey.getEncoded());
         }

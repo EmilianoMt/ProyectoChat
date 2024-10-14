@@ -2,7 +2,6 @@ package src.Client;
 
 import java.awt.*;
 import java.io.*;
-import java.net.*;
 import javax.crypto.SecretKey;
 import javax.swing.*;
 
@@ -14,26 +13,16 @@ public class PrivateChatWindow extends JFrame {
     private String sender;
     private String recipient;
     private SecretKey sharedKey; // Clave de cifrado compartida
+    private ChatClient chatClient;  // Referencia al cliente de chat para eliminar la ventana
 
     // Constructor de la ventana de chat privado
-    public PrivateChatWindow(String sender, String recipient, Socket sharedSocket, SecretKey sharedKey) {
+    public PrivateChatWindow(String sender, String recipient, DataInputStream groupInput, DataOutputStream groupOutput, SecretKey sharedKey, ChatClient chatClient) {
         this.sender = sender;
         this.recipient = recipient;
+        this.privateInput = groupInput; // Usar el mismo flujo de entrada
+        this.privateOutput = groupOutput; // Usar el mismo flujo de salida
         this.sharedKey = sharedKey;
-
-        if (sharedKey == null) {
-            System.err.println("La clave compartida es nula. No se puede abrir la ventana de chat privado.");
-            JOptionPane.showMessageDialog(this, "La clave compartida aún no ha sido recibida.", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        try {
-            // Inicializar flujos de entrada y salida utilizando el mismo socket para chat privado y grupal
-            this.privateInput = new DataInputStream(sharedSocket.getInputStream());
-            this.privateOutput = new DataOutputStream(sharedSocket.getOutputStream());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        this.chatClient = chatClient;
 
         // Inicializar la interfaz de usuario
         setupUI();
@@ -41,6 +30,7 @@ public class PrivateChatWindow extends JFrame {
         // Iniciar la escucha de mensajes privados
         new Thread(new PrivateMessageListener()).start();
     }
+
 
     // Configuración de la interfaz de usuario
     private void setupUI() {
@@ -100,6 +90,7 @@ public class PrivateChatWindow extends JFrame {
         }
     }
 
+
     // Enviar archivo
     private void sendFile() {
         try {
@@ -146,23 +137,16 @@ public class PrivateChatWindow extends JFrame {
         }
     }
 
-    // Clase interna para escuchar mensajes privados
+    // Clase interna para escuchar mensajes privados (desde el mismo Socket)
     private class PrivateMessageListener implements Runnable {
         public void run() {
             try {
                 while (true) {
-                    String msg = privateInput.readUTF();
+                    String msg = privateInput.readUTF();  // Usar el mismo flujo de entrada (groupInput)
                     System.out.println("Mensaje privado recibido: " + msg); // Depuración
 
-                    if (msg.startsWith("FILE:" + sender)) {
-                        String[] parts = msg.split(":", 4);
-                        String fileName = parts[2];
-                        long fileSize = Long.parseLong(parts[3]);
-
-                        // Recibir el archivo y guardarlo en la carpeta de descargas
-                        receiveFile(fileName, fileSize);
-                    } else if (msg.startsWith("PRIVATE:" + sender)) {
-                        // Lógica para recibir mensajes privados
+                    if (msg.startsWith("PRIVATE:" + sender)) {
+                        // Procesar mensaje privado para este remitente
                         String[] parts = msg.split(":", 3);
                         String encryptedMessage = parts[2];
 
@@ -187,6 +171,7 @@ public class PrivateChatWindow extends JFrame {
             }
         }
     }
+
 
     // Recibir archivo
     private void receiveFile(String fileName, long fileSize) {
@@ -216,14 +201,12 @@ public class PrivateChatWindow extends JFrame {
 
     @Override
     public void dispose() {
-        try {
-            if (privateInput != null) privateInput.close();
-            if (privateOutput != null) privateOutput.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        super.dispose();
+        // No cerrar los recursos del socket, solo cerrar la ventana
+        System.out.println("Cerrando ventana de chat privado para: " + recipient);
+        chatClient.removePrivateChatWindow(recipient); 
+        super.dispose();  // Llamar al método de la superclase para cerrar la ventana
     }
+    
 
     public static JTextArea getPrivateArea() {
         return privateChatArea;
