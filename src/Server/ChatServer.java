@@ -4,6 +4,8 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
 
 public class ChatServer {
     private static final int PORT = 8081; // Puerto para el chat grupal
@@ -60,7 +62,10 @@ public class ChatServer {
         connectedUsers.add(username); // Añadir usuario al conjunto
         userSockets.put(username, socket); // Añadir socket del usuario al mapa
         sendUserListToAll(); // Enviar lista de usuarios actualizada a todos
-        broadcastMessage(username + " has joined the chat."); // Notificar a todos los usuarios
+        if (!username.startsWith("PRIVATE")) {
+            broadcastMessage(username + " has joined the chat."); // Notificar a todos los usuarios
+        }
+        printUserSockets();
     }
 
     // Eliminar usuario y actualizar lista de usuarios
@@ -94,15 +99,23 @@ public class ChatServer {
     // Enviar un mensaje privado a un usuario específico
     public static synchronized void sendPrivateMessage(String recipient, String message) {
         try {
-            Socket recipientSocket = userSockets.get(recipient); // Obtener socket del destinatario
-            if (recipientSocket != null) {
+             // Limpiar el prefijo "PRIVATE" si está presente en el nombre del destinatario
+            // if (recipient.startsWith("PRIVATE")) {
+            //     recipient = recipient.substring(7);  // Quitar "PRIVATE"
+            // }
+            Socket recipientSocket = userSockets.get(recipient);  // Obtener socket del destinatario
+            if (recipientSocket != null && !recipientSocket.isClosed()) {  // Verificar que el socket esté abierto
                 DataOutputStream outPrivate = new DataOutputStream(recipientSocket.getOutputStream());
-                outPrivate.writeUTF(message); // Enviar mensaje privado
+                outPrivate.writeUTF(message);  // Enviar mensaje privado
+                outPrivate.flush();
+            } else {
+                System.out.println("Socket cerrado o destinatario no conectado: " + recipient);
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
+    
 
     // Difundir un mensaje grupal a todos los usuarios
     public static synchronized void broadcastMessage(String message) {
@@ -113,6 +126,47 @@ public class ChatServer {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        }
+    }
+
+    public static SecretKey generateSharedKey() {
+        try {
+            KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
+            keyGenerator.init(128); // Tamaño de clave de 128 bits
+            return keyGenerator.generateKey();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    // Método para enviar la clave compartida a todos los clientes conectados
+    public static void sendSharedKeyToAllClients(SecretKey sharedKey) {
+        try {
+            String encodedKey = Base64.getEncoder().encodeToString(sharedKey.getEncoded());
+
+            // Iterar sobre todos los clientes conectados y enviarles la clave compartida
+            for (Map.Entry<String, Socket> entry : userSockets.entrySet()) {
+                String clientName = entry.getKey();
+                Socket clientSocket = entry.getValue();
+
+                DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream());
+                out.writeUTF("KEY:" + encodedKey);
+
+                System.out.println("Clave compartida enviada a: " + clientName);  // Depuración
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void printUserSockets() {
+        System.out.println("Usuarios conectados y sus sockets:");
+        for (Map.Entry<String, Socket> entry : userSockets.entrySet()) {
+            String username = entry.getKey();
+            Socket socket = entry.getValue();
+            System.out.println("Usuario: " + username + ", Socket: " + socket);
         }
     }
 }

@@ -4,12 +4,12 @@ import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
 import java.net.*;
+import java.util.HashMap;
 import javax.crypto.SecretKey;
 import javax.swing.*;
 
 public class ChatClient extends JFrame {
     private Socket socket;
-    private Socket privateSocket;
     private DataInputStream groupInput;
     private DataOutputStream groupOutput;
     private DefaultListModel<String> userListModel;
@@ -17,7 +17,11 @@ public class ChatClient extends JFrame {
     private JTextField messageField;
     private JButton sendButton;
     private String username;
-    private SecretKey sharedKey; // Clave de cifrado compartida
+    // private SecretKey sharedKey; // Clave de cifrado compartida 
+    private HashMap<String, SecretKey> privateKeys = new HashMap<>();  // Almacenar claves privadas por usuario
+
+    // Mapa para almacenar ventanas de chat privado abiertas
+    private HashMap<String, PrivateChatWindow> privateChatWindows = new HashMap<>();
 
     // Constructor del cliente de chat
     public ChatClient(String serverAddress, int port) {
@@ -30,22 +34,16 @@ public class ChatClient extends JFrame {
                 }
             }
 
-            // Conectar al servidor para el chat grupal
+            // Conectar al servidor
             socket = new Socket(serverAddress, port);
             groupInput = new DataInputStream(socket.getInputStream());
             groupOutput = new DataOutputStream(socket.getOutputStream());
             groupOutput.writeUTF(username);  // Enviar nombre de usuario al servidor
 
-            // Conectar al servidor para el chat privado
-            privateSocket = new Socket(serverAddress, port);
-
-            // Generar una clave de cifrado compartida para los chats privados
-            sharedKey = EncryptionChat.keyGenerator();
-
             // Inicializar la interfaz de usuario
             setupUI();
 
-            // Comenzar a escuchar mensajes grupales
+            // Comenzar a escuchar mensajes (grupales, privados y claves compartidas)
             new Thread(new GroupMessageListener()).start();
         } catch (IOException e) {
             e.printStackTrace();
@@ -90,14 +88,26 @@ public class ChatClient extends JFrame {
                 if (evt.getClickCount() == 2) {
                     String selectedUser = userList.getSelectedValue();
                     if (selectedUser != null && !selectedUser.equals(username)) {
-                        // Abrir una nueva ventana de chat privado con la clave de cifrado compartida
-                        new PrivateChatWindow(username, selectedUser, privateSocket, sharedKey).setVisible(true);
+                        openPrivateChatWindow(selectedUser);
                     }
                 }
             }
         });
         JScrollPane userScrollPane = new JScrollPane(userList);
         add(userScrollPane, BorderLayout.EAST);
+    }
+
+    // Método para abrir una ventana de chat privado
+    private void openPrivateChatWindow(String recipient) {
+        if (!privateChatWindows.containsKey(recipient)) {
+            PrivateChatWindow privateChat = new PrivateChatWindow(username, recipient, socket, privateKeys.get(recipient));
+            privateChat.setVisible(true);
+            privateChatWindows.put(recipient, privateChat);
+        } else {
+            // Si la ventana ya está abierta, traerla al frente
+            PrivateChatWindow privateChat = privateChatWindows.get(recipient);
+            privateChat.toFront();
+        }
     }
 
     // Enviar mensaje al chat grupal
@@ -114,23 +124,26 @@ public class ChatClient extends JFrame {
         }
     }
 
-
-    // Clase interna para escuchar mensajes grupales
+    // Clase interna para escuchar mensajes (grupales, privados y claves compartidas)
     private class GroupMessageListener implements Runnable {
         public void run() {
             try {
                 while (true) {
                     String msg = groupInput.readUTF();
                     System.out.println("Mensaje recibido: " + msg); // Depuración
+
                     if (msg.startsWith("USERS:")) {
-                        // Actualizar la lista de usuarios solo si es un mensaje de lista de usuarios adecuado
+                        // Actualizar la lista de usuarios
                         String[] users = msg.substring(6).split(",");
                         updateUserList(users);
-                        if (!msg.contains("PRIVATE:")) {
-                            updateUserList(users);
-                        }
-                    } else if (!msg.startsWith("PRIVATE:")) {
-                        // Mostrar mensaje grupal con un salto de línea (filtrar mensajes privados)
+                    } else if (msg.startsWith("KEY:")) {
+                        // Recibir la clave compartida y asociarla con el usuario correcto
+                        handleKeyMessage(msg);
+                    } else if (msg.startsWith("PRIVATE:")) {
+                        // Manejar mensaje privado y redirigir a la ventana correspondiente
+                        handlePrivateMessage(msg);
+                    } else {
+                        // Mostrar mensaje grupal
                         chatArea.append(msg + "\n");
                         chatArea.setCaretPosition(chatArea.getDocument().getLength());  // Desplazarse automáticamente al final
                     }
@@ -141,14 +154,77 @@ public class ChatClient extends JFrame {
         }
     }
 
+    // Manejar mensaje privado recibido
+    private void handlePrivateMessage(String msg) {
+        String[] parts = msg.split(":", 3);
+        if (parts.length < 3) {
+            System.out.println("Mensaje privado mal formado: " + msg);
+            return;
+        }
+    
+        String sender = parts[1];  // El usuario que envía el mensaje
+        String encryptedMessage = parts[2].trim();  // El mensaje encriptado
+    
+        // Obtener la clave privada del remitente
+        SecretKey keyForUser = privateKeys.get(sender);
+        if (keyForUser == null) {
+            System.out.println("No se encontró la clave para " + sender);
+            return;
+        }
+
+        // Desencriptar el mensaje usando la clave compartida
+        try {
+            String decryptedMessage = EncryptionChat.Dencrypt(encryptedMessage, keyForUser);
+            System.out.println("Mensaje privado de " + sender + ": " + decryptedMessage); // Depuración
+    
+            // Abrir o actualizar la ventana de chat privado
+            openPrivateChatWindow(sender);
+            PrivateChatWindow privateChat = privateChatWindows.get(sender);
+            if (privateChat != null) {
+                privateChat.getPrivateArea().append(sender + ": " + decryptedMessage + "\n");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Manejar la recepción de la clave compartida
+    private void handleKeyMessage(String msg) {
+        String[] parts = msg.split(":", 2);
+        if (parts.length < 2) {
+            System.out.println("Clave mal formada: " + msg);
+            return;
+        }
+        
+        String encodedKey = parts[1];
+        SecretKey receivedKey = EncryptionChat.toSecretKey(encodedKey);
+        // Asignar la clave al remitente correspondiente
+        privateKeys.put(username, receivedKey);
+        System.out.println("Clave compartida recibida: " + encodedKey); // Depuración
+    }
+
     // Actualizar la lista de usuarios
     private void updateUserList(String[] users) {
         SwingUtilities.invokeLater(() -> {
             userListModel.clear();
             for (String user : users) {
-                userListModel.addElement(user);
+                if (!user.contains("PRIVATE")) {
+                    userListModel.addElement(user);
+                }
             }
         });
+    }
+
+    @Override
+    public void dispose() {
+        try {
+            if (groupInput != null) groupInput.close();
+            if (groupOutput != null) groupOutput.close();
+            if (socket != null && !socket.isClosed()) socket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        super.dispose();
     }
 
     // Método principal para iniciar el cliente de chat
