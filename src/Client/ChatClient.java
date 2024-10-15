@@ -167,7 +167,7 @@ public class ChatClient extends JFrame {
         }
     }
 
-
+    // Manejar mensaje privado
     private void handlePrivateMessage(String msg) {
         System.out.println("Mensaje recibido en el cliente: " + msg);
 
@@ -207,7 +207,6 @@ public class ChatClient extends JFrame {
             e.printStackTrace();
         }
     }
-    
 
     // Manejar la recepción de la clave compartida
     private void handleKeyMessage(String msg) {
@@ -232,7 +231,6 @@ public class ChatClient extends JFrame {
         }
     }
 
-
     // Actualizar la lista de usuarios
     private void updateUserList(String[] users) {
         SwingUtilities.invokeLater(() -> {
@@ -245,21 +243,23 @@ public class ChatClient extends JFrame {
         });
     }
 
+    // Método para liberar recursos y cerrar conexiones al cerrar la ventana
     @Override
     public void dispose() {
         try {
-            if (groupInput != null) groupInput.close();
-            if (groupOutput != null) groupOutput.close();
-            if (socket != null && !socket.isClosed()) socket.close();
+            if (groupInput != null) groupInput.close(); // Cerrar el flujo de entrada
+            if (groupOutput != null) groupOutput.close(); // Cerrar el flujo de salida
+            if (socket != null && !socket.isClosed()) socket.close(); // Cerrar el socket si no está ya cerrado
         } catch (IOException e) {
             e.printStackTrace();
         }
-        super.dispose();
-    }
+            super.dispose(); // Llamar al método dispose() de la superclase
+        }
 
-    public void removePrivateChatWindow(String recipient) {
-        privateChatWindows.remove(recipient);
-    }
+        // Método para eliminar una ventana de chat privado del mapa
+        public void removePrivateChatWindow(String recipient) {
+            privateChatWindows.remove(recipient); // Eliminar la ventana de chat privado del mapa
+        }
 
     // Método principal para iniciar el cliente de chat
     public static void main(String[] args) {

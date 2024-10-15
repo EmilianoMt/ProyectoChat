@@ -117,7 +117,6 @@ public class HiloChatServer implements Runnable {
        
     }
 
-    
      public static String toString(SecretKey secretKey) {
             return Base64.getEncoder().encodeToString(secretKey.getEncoded());
         }

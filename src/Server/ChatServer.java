@@ -17,8 +17,8 @@ public class ChatServer {
     public static void main(String[] args) {
         try {
             sharedKey = generateSharedKey(); // Generar clave compartida para cifrado simétrico
-            // Crear dos sockets de servidor para chat grupal y privado
             
+            // Crear socket de servidor para chat grupal
             ServerSocket serverSocket = new ServerSocket(PORT);
 
             System.out.println("Chat Server is running on port " + PORT);
@@ -33,6 +33,7 @@ public class ChatServer {
         }
     }
 
+    // Obtener la clave compartida
     public static SecretKey getSharedKey() {
         return sharedKey;
     }
@@ -111,10 +112,6 @@ public class ChatServer {
     // Enviar un mensaje privado a un usuario específico
     public static synchronized void sendPrivateMessage(String recipient, String message) {
         try {
-             // Limpiar el prefijo "PRIVATE" si está presente en el nombre del destinatario
-            // if (recipient.startsWith("PRIVATE")) {
-            //     recipient = recipient.substring(7);  // Quitar "PRIVATE"
-            // }
             Socket recipientSocket = userSockets.get(recipient);  // Obtener socket del destinatario
             if (recipientSocket != null && !recipientSocket.isClosed()) {  // Verificar que el socket esté abierto
                 DataOutputStream outPrivate = new DataOutputStream(recipientSocket.getOutputStream());
@@ -141,6 +138,7 @@ public class ChatServer {
         }
     }
 
+    // Generar una clave compartida para cifrado simétrico
     public static SecretKey generateSharedKey() {
         try {
             KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
@@ -195,6 +193,7 @@ public class ChatServer {
         }
     }
 
+    // Imprimir los usuarios conectados y sus sockets
     public static void printUserSockets() {
         System.out.println("Usuarios conectados y sus sockets:");
         for (Map.Entry<String, Socket> entry : userSockets.entrySet()) {

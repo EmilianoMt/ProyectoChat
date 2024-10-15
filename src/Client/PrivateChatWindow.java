@@ -31,7 +31,6 @@ public class PrivateChatWindow extends JFrame {
         new Thread(new PrivateMessageListener()).start();
     }
 
-
     // Configuración de la interfaz de usuario
     private void setupUI() {
         setTitle("Private Chat - " + recipient);
@@ -90,7 +89,6 @@ public class PrivateChatWindow extends JFrame {
         }
     }
 
-
     // Enviar archivo
     private void sendFile() {
         try {
@@ -112,10 +110,9 @@ public class PrivateChatWindow extends JFrame {
                 fileInputStream.read(fileBytes);
                 fileInputStream.close();
     
-                // Enviar el archivo con el prefijo "FILE:"
-                // privateOutput.writeUTF("FILE:" + this.sender + ":" + recipient + ":" + selectedFile.getName() + ":" + fileBytes.length);
+                // Enviar el archivo por bytes
                 privateOutput.writeUTF("FILE:" + recipient + ":" + selectedFile.getName() + ":" + fileBytes.length);
-                privateOutput.write(fileBytes); // Enviar el archivo por bytes
+                privateOutput.write(fileBytes); 
                 privateOutput.flush();
 
                 System.out.println("Archivo enviado: " + selectedFile.getName()); // Depuración
@@ -137,9 +134,9 @@ public class PrivateChatWindow extends JFrame {
 
                     if (msg.startsWith("PRIVATE:" + sender)) {
                         reciveMessage(msg);
-                    }else if (msg.startsWith("FILE:")) {
+                    } else if (msg.startsWith("FILE:")) {
                         handleFileReception(msg);
-                    }else{
+                    } else {
                         System.out.println("Mensaje privado mal formado: " + msg);
                     }
                 }
@@ -149,8 +146,8 @@ public class PrivateChatWindow extends JFrame {
         }
     }
 
-    private void reciveMessage(String msg){
-        // Procesar mensaje privado para este remitente
+    // Procesar mensaje privado para este remitente
+    private void reciveMessage(String msg) {
         String[] parts = msg.split(":", 3);
         String encryptedMessage = parts[2];
 
@@ -188,6 +185,7 @@ public class PrivateChatWindow extends JFrame {
                 int bytesRead;
                 long totalBytesRead = 0;
 
+                // Leer el archivo en bytes y guardarlo
                 while (totalBytesRead < fileSize && (bytesRead = privateInput.read(buffer)) != -1) {
                     fileOutputStream.write(buffer, 0, bytesRead);
                     totalBytesRead += bytesRead;
@@ -201,34 +199,7 @@ public class PrivateChatWindow extends JFrame {
             }
         }
     }
-
-
-    // // Recibir archivo
-    // private void receiveFile(String fileName, long fileSize) {
-    //     try {
-    //         // Obtener la ruta de la carpeta de descargas
-    //         String userHome = System.getProperty("user.home");
-    //         File downloadFolder = new File(userHome, "Downloads");
-    //         File receivedFile = new File(downloadFolder, fileName);
-
-    //         FileOutputStream fileOutputStream = new FileOutputStream(receivedFile);
-    //         byte[] buffer = new byte[4096];
-    //         int bytesRead;
-    //         long totalBytesRead = 0;
-
-    //         while (totalBytesRead < fileSize && (bytesRead = privateInput.read(buffer)) != -1) {
-    //             fileOutputStream.write(buffer, 0, bytesRead);
-    //             totalBytesRead += bytesRead;
-    //         }
-
-    //         fileOutputStream.close();
-    //         privateChatArea.append("Archivo recibido: " + fileName + " guardado en " + downloadFolder.getAbsolutePath() + "\n");
-    //     } catch (IOException e) {
-    //         e.printStackTrace();
-    //         privateChatArea.append("Error al recibir el archivo.\n");
-    //     }
-    // }
-
+    
     @Override
     public void dispose() {
         // No cerrar los recursos del socket, solo cerrar la ventana
@@ -236,8 +207,8 @@ public class PrivateChatWindow extends JFrame {
         chatClient.removePrivateChatWindow(recipient); 
         super.dispose();  // Llamar al método de la superclase para cerrar la ventana
     }
-    
 
+    // Obtener el área de chat privado
     public static JTextArea getPrivateArea() {
         return privateChatArea;
     }
