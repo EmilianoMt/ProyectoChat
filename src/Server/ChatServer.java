@@ -179,7 +179,7 @@ public class ChatServer {
                 DataOutputStream out = new DataOutputStream(recipientSocket.getOutputStream());
 
                 // Enviar notificación de archivo
-                out.writeUTF("FILE:" + fileName + ":" + fileBytes.length);
+                out.writeUTF("FILE:" + recipient + ":" + fileName + ":" + fileBytes.length);
                 // Enviar el archivo en bytes
                 out.write(fileBytes);
                 out.flush();

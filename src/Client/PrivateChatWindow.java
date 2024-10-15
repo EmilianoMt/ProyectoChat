@@ -133,9 +133,9 @@ public class PrivateChatWindow extends JFrame {
                     System.out.println("Mensaje privado recibido: " + msg); // Depuración
 
                     if (msg.startsWith("PRIVATE:" + sender)) {
-                        reciveMessage(msg);
+                        // reciveMessage(msg);
                     } else if (msg.startsWith("FILE:")) {
-                        handleFileReception(msg);
+                        // handleFileReception(msg);
                     } else {
                         System.out.println("Mensaje privado mal formado: " + msg);
                     }
@@ -146,59 +146,6 @@ public class PrivateChatWindow extends JFrame {
         }
     }
 
-    // Procesar mensaje privado para este remitente
-    private void reciveMessage(String msg) {
-        String[] parts = msg.split(":", 3);
-        String encryptedMessage = parts[2];
-
-        if (sharedKey == null) {
-            System.err.println("No se puede desencriptar el mensaje. La clave compartida es nula.");
-            privateChatArea.append("Error: Clave compartida no disponible para desencriptar el mensaje.\n");
-            return;
-        }
-
-        // Desencriptar el mensaje usando la clave compartida
-        try {
-            String decryptedMessage = EncryptionChat.Dencrypt(encryptedMessage, sharedKey);
-            privateChatArea.append(sender + ": " + decryptedMessage + "\n");
-        } catch (Exception e) {
-            e.printStackTrace();
-            privateChatArea.append("Error al desencriptar el mensaje.\n");
-        }
-    }
-
-    // Manejar la recepción de un archivo
-    private void handleFileReception(String msg) {
-        String[] parts = msg.split(":", 3);
-        if (parts.length == 3) {
-            String fileName = parts[1];
-            long fileSize = Long.parseLong(parts[2]);
-
-            try {
-                // Ruta para guardar el archivo
-                String userHome = System.getProperty("user.home");
-                File downloadFolder = new File(userHome, "Downloads");
-                File receivedFile = new File(downloadFolder, fileName);
-
-                FileOutputStream fileOutputStream = new FileOutputStream(receivedFile);
-                byte[] buffer = new byte[4096];
-                int bytesRead;
-                long totalBytesRead = 0;
-
-                // Leer el archivo en bytes y guardarlo
-                while (totalBytesRead < fileSize && (bytesRead = privateInput.read(buffer)) != -1) {
-                    fileOutputStream.write(buffer, 0, bytesRead);
-                    totalBytesRead += bytesRead;
-                }
-
-                fileOutputStream.close();
-                privateChatArea.append("Archivo recibido: " + fileName + " guardado en " + downloadFolder.getAbsolutePath() + "\n");
-            } catch (IOException e) {
-                e.printStackTrace();
-                privateChatArea.append("Error al recibir el archivo.\n");
-            }
-        }
-    }
     
     @Override
     public void dispose() {

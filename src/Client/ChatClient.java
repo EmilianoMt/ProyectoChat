@@ -155,7 +155,10 @@ public class ChatClient extends JFrame {
                     } else if (msg.startsWith("PRIVATE:")) {
                         // Manejar mensaje privado
                         handlePrivateMessage(msg);
-                    } else {
+                    } else if (msg.startsWith("FILE:")) {
+                        // Manejar la recepción de un archivo
+                        handleFileReception(msg);
+                    }else {
                         // Mostrar mensaje grupal
                         chatArea.append(msg + "\n");
                         chatArea.setCaretPosition(chatArea.getDocument().getLength());  // Desplazarse automáticamente al final
@@ -167,41 +170,89 @@ public class ChatClient extends JFrame {
         }
     }
 
+    // Manejar la recepción de un archivo
+    private void handleFileReception(String msg) {
+        System.out.println("Recibiendo archivo en el cliente: " + msg);
+        String[] parts = msg.split(":", 4);
+        if (parts.length == 4) {
+            String recipient = parts[1];  // Extraer el destinatario
+            String fileName = parts[2];  // Nombre del archivo
+            long fileSize = Long.parseLong(parts[3]);  // Tamaño del archivo
+
+            try {
+                // Ruta para guardar el archivo
+                String userHome = System.getProperty("user.home");
+                File downloadFolder = new File(userHome, "Downloads");
+                File receivedFile = new File(downloadFolder, fileName);
+
+                FileOutputStream fileOutputStream = new FileOutputStream(receivedFile);
+                byte[] buffer = new byte[4096];
+                int bytesRead;
+                long totalBytesRead = 0;
+
+                // Leer el archivo en bytes y guardarlo
+                while (totalBytesRead < fileSize && (bytesRead = groupInput.read(buffer)) != -1) {
+                    fileOutputStream.write(buffer, 0, bytesRead);
+                    totalBytesRead += bytesRead;
+                }
+
+                fileOutputStream.close();
+
+                // Obtener la instancia de PrivateChatWindow para el remitente
+                PrivateChatWindow privateChat = privateChatWindows.get(recipient);
+                if (privateChat != null) {
+                    // Actualizar el área de chat con el mensaje de archivo recibido
+                    privateChat.getPrivateArea().append("Archivo recibido: " + fileName + " guardado en " + downloadFolder.getAbsolutePath() + "\n");
+                } else {
+                    // Si no hay ventana de chat privado abierta, mostrar un mensaje en la consola o en el chat grupal
+                    chatArea.append("Archivo recibido de " + recipient + ": " + fileName + " guardado en " + downloadFolder.getAbsolutePath() + "\n");
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+                if (privateChatWindows.get(recipient) != null) {
+                    privateChatWindows.get(recipient).getPrivateArea().append("Error al recibir el archivo.\n");
+                } else {
+                    chatArea.append("Error al recibir el archivo.\n");
+                }
+            }
+        }
+    }
+
     // Manejar mensaje privado
     private void handlePrivateMessage(String msg) {
-        System.out.println("Mensaje recibido en el cliente: " + msg);
+    System.out.println("Mensaje recibido en el cliente: " + msg);
 
         String[] parts = msg.split(":", 3); // Dividir el mensaje en partes
         if (parts.length < 3) {
             System.out.println("Mensaje privado mal formado: " + msg);
             return;
         }
-    
+
         String sender = parts[1];
         String encryptedMessage = parts[2].trim();
-    
+
         // Si el nombre del remitente tiene "PRIVATE", quitarlo
         if (sender.startsWith("PRIVATE")) {
             sender = sender.replace("PRIVATE", "").trim();
         }
-    
+
         // Obtener la clave privada del remitente
         SecretKey keyForUser = privateKeys.get(sender);
         if (keyForUser == null) {
             System.out.println("No se encontró la clave para " + sender);
             return;
         }
-    
+
         // Desencriptar el mensaje usando la clave privada
         try {
             String decryptedMessage = EncryptionChat.Dencrypt(encryptedMessage, keyForUser);
             System.out.println("Mensaje privado de " + sender + ": " + decryptedMessage);
-    
+
             // Actualizar la ventana de chat privado
             openPrivateChatWindow(sender);
             PrivateChatWindow privateChat = privateChatWindows.get(sender);
             if (privateChat != null) {
-                privateChat.getPrivateArea().append(sender + ": " + decryptedMessage + "\n");
+            privateChat.getPrivateArea().append(sender + ": " + decryptedMessage + "\n");
             }
         } catch (Exception e) {
             e.printStackTrace();

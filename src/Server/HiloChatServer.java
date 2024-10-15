@@ -9,7 +9,6 @@ public class HiloChatServer implements Runnable {
     private Socket socket;
     private DataInputStream input;
     private String username;
-    private String key;
     SecretKey sharedKey;
 
     // Constructor para inicializar el socket y el tipo de chat
@@ -44,6 +43,8 @@ public class HiloChatServer implements Runnable {
             while ((msg = input.readUTF()) != null) {
                 if (msg.startsWith("PRIVATE:")) {
                     handlePrivateMessage(msg); // Manejar mensajes privados
+                }else if (msg.startsWith("FILE:")) {
+                    handleFileReception(msg); // Manejar archivos
                 } else {
                     handleGroupMessage(msg); // Manejar mensajes grupales
                 }
@@ -66,29 +67,6 @@ public class HiloChatServer implements Runnable {
     // Manejar mensajes privados
     private void handlePrivateMessage(String msg) {
         System.out.println("Recibiendo mensaje privado en el servidor: " + msg); // Depuración
-        if (msg.startsWith("FILE:")) {
-            // Procesar archivo
-            System.out.println("Recibiendo archivo en el servidor: " + msg);
-            String[] parts = msg.split(":", 4);
-            if (parts.length == 4) {
-                String recipient = parts[1];
-                String fileName = parts[2];
-                long fileSize = Long.parseLong(parts[3]);
-    
-                try {
-                    // Leer el archivo del flujo de entrada
-                    byte[] fileBytes = new byte[(int) fileSize];
-                    input.readFully(fileBytes);  // Leer el archivo completo
-    
-                    // Enviar el archivo solo al destinatario
-                    // ChatServer.sendFileToUser(sender, recipient, fileName, fileBytes);
-
-                    ChatServer.sendFileToUser(recipient, fileName, fileBytes);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }else{
             String[] parts = msg.split(":", 3); // dividir mensaje en partes
             if (parts.length < 3) {
                 System.out.println("Mensaje privado mal formado: " + msg);
@@ -114,8 +92,34 @@ public class HiloChatServer implements Runnable {
             System.out.println("Enviando mensaje privado al destinatario: " + recipient);
             ChatServer.sendPrivateMessage(recipient, "PRIVATE:" + this.username + ":" + message);
         }
-       
+
+    private void handleFileReception(String msg){
+         // Procesar archivo
+         System.out.println("Recibiendo archivo en el servidor: " + msg);
+         String[] parts = msg.split(":", 4);
+         if (parts.length == 4) {
+             String recipient = parts[1];
+             String fileName = parts[2];
+             long fileSize = Long.parseLong(parts[3]);
+             System.out.println(fileSize);
+             System.out.println(recipient);
+ 
+             try {
+                 // Leer el archivo del flujo de entrada
+                 byte[] fileBytes = new byte[(int) fileSize];
+                 input.readFully(fileBytes);  // Leer el archivo completo
+ 
+                 // Enviar el archivo solo al destinatario
+                 // ChatServer.sendFileToUser(sender, recipient, fileName, fileBytes);
+
+                 ChatServer.sendFileToUser(recipient, fileName, fileBytes);
+             } catch (IOException e) {
+                 e.printStackTrace();
+             }
+         }
     }
+       
+    
 
      public static String toString(SecretKey secretKey) {
             return Base64.getEncoder().encodeToString(secretKey.getEncoded());
