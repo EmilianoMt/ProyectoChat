@@ -26,14 +26,11 @@ public class PrivateChatWindow extends JFrame {
 
         // Inicializar la interfaz de usuario
         setupUI();
-
-        // Iniciar la escucha de mensajes privados
-        // new Thread(new PrivateMessageListener()).start();
     }
 
     // Configuración de la interfaz de usuario
     private void setupUI() {
-        setTitle("Private Chat - " + recipient);
+        setTitle("Private Chat - con " + recipient);
         setSize(400, 300);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
@@ -123,28 +120,6 @@ public class PrivateChatWindow extends JFrame {
             e.printStackTrace();
         }
     }
-
-    // // Clase interna para escuchar mensajes privados (desde el mismo Socket)
-    // private class PrivateMessageListener implements Runnable {
-    //     public void run() {
-    //         try {
-    //             while (true) {
-    //                 String msg = privateInput.readUTF();  // Usar el mismo flujo de entrada (groupInput)
-    //                 System.out.println("Mensaje privado recibido: " + msg); // Depuración
-
-    //                 if (msg.startsWith("PRIVATE:" + sender)) {
-    //                     // reciveMessage(msg);
-    //                 } else if (msg.startsWith("FILE:")) {
-    //                     // handleFileReception(msg);
-    //                 } else {
-    //                     System.out.println("Mensaje privado mal formado: " + msg);
-    //                 }
-    //             }
-    //         } catch (IOException e) {
-    //             e.printStackTrace();
-    //         }
-    //     }
-    // }
 
     
     @Override
