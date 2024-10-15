@@ -173,6 +173,28 @@ public class ChatServer {
         }
     }
 
+    // Enviar archivo a un destinatario específico
+    public static synchronized void sendFileToUser(String recipient, String fileName, byte[] fileBytes) {
+        try {
+            Socket recipientSocket = userSockets.get(recipient);
+            if (recipientSocket != null && !recipientSocket.isClosed()) {
+                DataOutputStream out = new DataOutputStream(recipientSocket.getOutputStream());
+
+                // Enviar notificación de archivo
+                out.writeUTF("FILE:" + fileName + ":" + fileBytes.length);
+                // Enviar el archivo en bytes
+                out.write(fileBytes);
+                out.flush();
+
+                System.out.println("Archivo enviado a " + recipient + ": " + fileName);
+            } else {
+                System.out.println("Socket cerrado o destinatario no conectado: " + recipient);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     public static void printUserSockets() {
         System.out.println("Usuarios conectados y sus sockets:");
         for (Map.Entry<String, Socket> entry : userSockets.entrySet()) {

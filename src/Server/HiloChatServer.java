@@ -66,20 +66,55 @@ public class HiloChatServer implements Runnable {
     // Manejar mensajes privados
     private void handlePrivateMessage(String msg) {
         System.out.println("Recibiendo mensaje privado en el servidor: " + msg); // Depuración
+        if (msg.startsWith("FILE:")) {
+            // Procesar archivo
+            System.out.println("Recibiendo archivo en el servidor: " + msg);
+            String[] parts = msg.split(":", 4);
+            if (parts.length == 4) {
+                String recipient = parts[1];
+                String fileName = parts[2];
+                long fileSize = Long.parseLong(parts[3]);
+    
+                try {
+                    // Leer el archivo del flujo de entrada
+                    byte[] fileBytes = new byte[(int) fileSize];
+                    input.readFully(fileBytes);  // Leer el archivo completo
+    
+                    // Enviar el archivo solo al destinatario
+                    // ChatServer.sendFileToUser(sender, recipient, fileName, fileBytes);
 
-        String[] parts = msg.split(":", 3); // dividir mensaje en partes
-        if (parts.length < 3) {
-            System.out.println("Mensaje privado mal formado: " + msg);
-            return;
+                    ChatServer.sendFileToUser(recipient, fileName, fileBytes);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }else{
+            String[] parts = msg.split(":", 3); // dividir mensaje en partes
+            if (parts.length < 3) {
+                System.out.println("Mensaje privado mal formado: " + msg);
+                return;
+            }
+        
+            // Extraer destinatario y mensaje encriptado
+            String recipient = parts[1];
+            String message = parts[2];
+        
+            // Verificar que el destinatario y el mensaje no estén vacíos o corruptos
+            if (recipient == null || recipient.isEmpty()) {
+                System.out.println("El destinatario del mensaje privado es nulo o vacío.");
+                return;
+            }
+        
+            if (message == null || message.isEmpty()) {
+                System.out.println("El mensaje privado está vacío o es nulo.");
+                return;
+            }
+        
+            // Enviar mensaje al destinatario corregido
+            System.out.println("Enviando mensaje privado al destinatario: " + recipient);
+            ChatServer.sendPrivateMessage(recipient, "PRIVATE:" + this.username + ":" + message);
         }
-
-        // Extraer destinatario y mensaje encriptado
-        String recipient = parts[1];
-        String message = parts[2];
-
-        // Enviar mensaje al destinatario corregido
-        System.out.println("Enviando mensaje privado al destinatario: " + recipient);
-        ChatServer.sendPrivateMessage(recipient, "PRIVATE:" + this.username + ":" + message);
+       
     }
 
     

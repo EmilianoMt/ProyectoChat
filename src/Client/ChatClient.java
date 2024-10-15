@@ -169,6 +169,8 @@ public class ChatClient extends JFrame {
 
 
     private void handlePrivateMessage(String msg) {
+        System.out.println("Mensaje recibido en el cliente: " + msg);
+
         String[] parts = msg.split(":", 3); // Dividir el mensaje en partes
         if (parts.length < 3) {
             System.out.println("Mensaje privado mal formado: " + msg);
