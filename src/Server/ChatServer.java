@@ -177,13 +177,14 @@ public class ChatServer {
             Socket recipientSocket = userSockets.get(recipient);
             if (recipientSocket != null && !recipientSocket.isClosed()) {
                 DataOutputStream out = new DataOutputStream(recipientSocket.getOutputStream());
-
-                // Enviar notificación de archivo
+    
+                // Primero, enviar la notificación de archivo con `writeUTF()` para el encabezado.
                 out.writeUTF("FILE:" + recipient + ":" + fileName + ":" + fileBytes.length);
-                // Enviar el archivo en bytes
+    
+                // Luego, enviar los bytes del archivo con `write()` para manejar los datos binarios.
                 out.write(fileBytes);
                 out.flush();
-
+    
                 System.out.println("Archivo enviado a " + recipient + ": " + fileName);
             } else {
                 System.out.println("Socket cerrado o destinatario no conectado: " + recipient);
@@ -192,7 +193,7 @@ public class ChatServer {
             e.printStackTrace();
         }
     }
-
+    
     // Imprimir los usuarios conectados y sus sockets
     public static void printUserSockets() {
         System.out.println("Usuarios conectados y sus sockets:");

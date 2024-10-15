@@ -153,12 +153,12 @@ public class ChatClient extends JFrame {
                         // Recibir la clave compartida y asociarla con el usuario correcto
                         handleKeyMessage(msg);
                     } else if (msg.startsWith("PRIVATE:")) {
-                        // Manejar mensaje privado
-                        handlePrivateMessage(msg);
+                        // Crear un nuevo hilo para manejar el mensaje privado
+                        new Thread(() -> handlePrivateMessage(msg)).start();
                     } else if (msg.startsWith("FILE:")) {
-                        // Manejar la recepción de un archivo
-                        handleFileReception(msg);
-                    }else {
+                        // Crear un nuevo hilo para manejar la recepción de un archivo
+                        new Thread(() -> handleFileReception(msg)).start();
+                    } else {
                         // Mostrar mensaje grupal
                         chatArea.append(msg + "\n");
                         chatArea.setCaretPosition(chatArea.getDocument().getLength());  // Desplazarse automáticamente al final
@@ -175,48 +175,48 @@ public class ChatClient extends JFrame {
         System.out.println("Recibiendo archivo en el cliente: " + msg);
         String[] parts = msg.split(":", 4);
         if (parts.length == 4) {
-            String recipient = parts[1];  // Extraer el destinatario
+            String sender = parts[1];  // Extraer el remitente
             String fileName = parts[2];  // Nombre del archivo
             long fileSize = Long.parseLong(parts[3]);  // Tamaño del archivo
-
+    
             try {
                 // Ruta para guardar el archivo
                 String userHome = System.getProperty("user.home");
                 File downloadFolder = new File(userHome, "Downloads");
                 File receivedFile = new File(downloadFolder, fileName);
-
+    
+                // Crear un flujo de salida para escribir el archivo
                 FileOutputStream fileOutputStream = new FileOutputStream(receivedFile);
-                byte[] buffer = new byte[4096];
+                byte[] buffer = new byte[4096];  // Usar un buffer de 4KB para leer el archivo en fragmentos
                 int bytesRead;
                 long totalBytesRead = 0;
-
-                // Leer el archivo en bytes y guardarlo
-                while (totalBytesRead < fileSize && (bytesRead = groupInput.read(buffer)) != -1) {
+    
+                // Leer los datos binarios del archivo
+                while (totalBytesRead < fileSize && (bytesRead = groupInput.read(buffer, 0, (int)Math.min(buffer.length, fileSize - totalBytesRead))) != -1) {
                     fileOutputStream.write(buffer, 0, bytesRead);
                     totalBytesRead += bytesRead;
                 }
-
+    
                 fileOutputStream.close();
-
-                // Obtener la instancia de PrivateChatWindow para el remitente
-                PrivateChatWindow privateChat = privateChatWindows.get(recipient);
+    
+                // Actualizar el área de chat con el mensaje de archivo recibido
+                PrivateChatWindow privateChat = privateChatWindows.get(sender);
                 if (privateChat != null) {
-                    // Actualizar el área de chat con el mensaje de archivo recibido
                     privateChat.getPrivateArea().append("Archivo recibido: " + fileName + " guardado en " + downloadFolder.getAbsolutePath() + "\n");
                 } else {
-                    // Si no hay ventana de chat privado abierta, mostrar un mensaje en la consola o en el chat grupal
-                    chatArea.append("Archivo recibido de " + recipient + ": " + fileName + " guardado en " + downloadFolder.getAbsolutePath() + "\n");
+                    chatArea.append("Archivo recibido de " + sender + ": " + fileName + " guardado en " + downloadFolder.getAbsolutePath() + "\n");
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-                if (privateChatWindows.get(recipient) != null) {
-                    privateChatWindows.get(recipient).getPrivateArea().append("Error al recibir el archivo.\n");
+                if (privateChatWindows.get(sender) != null) {
+                    privateChatWindows.get(sender).getPrivateArea().append("Error al recibir el archivo.\n");
                 } else {
                     chatArea.append("Error al recibir el archivo.\n");
                 }
             }
         }
     }
+    
 
     // Manejar mensaje privado
     private void handlePrivateMessage(String msg) {
