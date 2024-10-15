@@ -8,6 +8,7 @@ import java.util.HashMap;
 import javax.crypto.SecretKey;
 import javax.swing.*;
 
+
 public class ChatClient extends JFrame {
     private Socket socket;
     private DataInputStream groupInput;
@@ -157,6 +158,7 @@ public class ChatClient extends JFrame {
                         new Thread(() -> handlePrivateMessage(msg)).start();
                     } else if (msg.startsWith("FILE:")) {
                         // Crear un nuevo hilo para manejar la recepción de un archivo
+                        // String msgFile = readFully(msg);
                         new Thread(() -> handleFileReception(msg)).start();
                     } else {
                         // Mostrar mensaje grupal
@@ -178,33 +180,46 @@ public class ChatClient extends JFrame {
             String sender = parts[1];  // Extraer el remitente
             String fileName = parts[2];  // Nombre del archivo
             long fileSize = Long.parseLong(parts[3]);  // Tamaño del archivo
-    
+
+            FileOutputStream fileOutputStream = null;
             try {
                 // Ruta para guardar el archivo
                 String userHome = System.getProperty("user.home");
                 File downloadFolder = new File(userHome, "Downloads");
                 File receivedFile = new File(downloadFolder, fileName);
-    
+
                 // Crear un flujo de salida para escribir el archivo
-                FileOutputStream fileOutputStream = new FileOutputStream(receivedFile);
-                byte[] buffer = new byte[4096];  // Usar un buffer de 4KB para leer el archivo en fragmentos
+                fileOutputStream = new FileOutputStream(receivedFile);
+                byte[] buffer = new byte[8192];  // Tamaño del buffer reducido
                 int bytesRead;
                 long totalBytesRead = 0;
-    
-                // Leer los datos binarios del archivo
-                while (totalBytesRead < fileSize && (bytesRead = groupInput.read(buffer, 0, (int)Math.min(buffer.length, fileSize - totalBytesRead))) != -1) {
-                    fileOutputStream.write(buffer, 0, bytesRead);
-                    totalBytesRead += bytesRead;
-                }
-    
-                fileOutputStream.close();
-    
-                // Actualizar el área de chat con el mensaje de archivo recibido
-                PrivateChatWindow privateChat = privateChatWindows.get(sender);
-                if (privateChat != null) {
-                    privateChat.getPrivateArea().append("Archivo recibido: " + fileName + " guardado en " + downloadFolder.getAbsolutePath() + "\n");
+
+                // Verificar si el tamaño del archivo es mayor que cero
+                if (fileSize > 0) {
+                    System.out.println("Tamaño del archivo a recibir: " + fileSize + " bytes");
+
+                    // Leer los datos binarios del archivo
+                    while (totalBytesRead < fileSize && (bytesRead = groupInput.read(buffer, 0, (int)Math.min(buffer.length, fileSize - totalBytesRead))) != -1) {
+                        fileOutputStream.write(buffer, 0, bytesRead);
+                        totalBytesRead += bytesRead;
+                        System.out.println("Bytes leídos: " + totalBytesRead + "/" + fileSize);
+                    }
+
+                    // Verificar si se leyó todo el archivo
+                    if (totalBytesRead == fileSize) {
+                        System.out.println("Archivo recibido completamente: " + fileName);
+                        // Actualizar el área de chat con el mensaje de archivo recibido
+                        PrivateChatWindow privateChat = privateChatWindows.get(sender);
+                        if (privateChat != null) {
+                            privateChat.getPrivateArea().append("Archivo recibido: " + fileName + " guardado en " + downloadFolder.getAbsolutePath() + "\n");
+                        } else {
+                            chatArea.append("Archivo recibido de " + sender + ": " + fileName + " guardado en " + downloadFolder.getAbsolutePath() + "\n");
+                        }
+                    } else {
+                        System.out.println("Error: No se leyó todo el archivo. Bytes leídos: " + totalBytesRead + "/" + fileSize);
+                    }
                 } else {
-                    chatArea.append("Archivo recibido de " + sender + ": " + fileName + " guardado en " + downloadFolder.getAbsolutePath() + "\n");
+                    System.out.println("Error: Tamaño del archivo no válido: " + fileSize);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -213,10 +228,17 @@ public class ChatClient extends JFrame {
                 } else {
                     chatArea.append("Error al recibir el archivo.\n");
                 }
+            } finally {
+                if (fileOutputStream != null) {
+                    try {
+                        fileOutputStream.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
             }
         }
     }
-    
 
     // Manejar mensaje privado
     private void handlePrivateMessage(String msg) {

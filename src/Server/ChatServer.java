@@ -191,6 +191,8 @@ public class ChatServer {
             }
         } catch (IOException e) {
             e.printStackTrace();
+            System.out.println("error al enviar el archivo");
+            
         }
     }
     

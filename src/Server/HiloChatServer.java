@@ -101,16 +101,13 @@ public class HiloChatServer implements Runnable {
              String recipient = parts[1];
              String fileName = parts[2];
              long fileSize = Long.parseLong(parts[3]);
-             System.out.println(fileSize);
-             System.out.println(recipient);
+            //  System.out.println(fileSize);
+            //  System.out.println(recipient);
  
              try {
                  // Leer el archivo del flujo de entrada
                  byte[] fileBytes = new byte[(int) fileSize];
                  input.readFully(fileBytes);  // Leer el archivo completo
- 
-                 // Enviar el archivo solo al destinatario
-                 // ChatServer.sendFileToUser(sender, recipient, fileName, fileBytes);
 
                  ChatServer.sendFileToUser(recipient, fileName, fileBytes);
              } catch (IOException e) {
